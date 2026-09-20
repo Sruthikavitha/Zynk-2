@@ -62,7 +62,7 @@ export const ChefReportsPage: React.FC = () => {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 gap-2">
                   <div className="flex items-center gap-2 font-bold text-sm text-slate-900">
                     <Calendar className="w-4 h-4 text-amber-500" />
-                    Report Date: {new Date(report.createdAt).toLocaleDateString()}
+                    Report Date: {report.createdAt ? new Date(report.createdAt).toLocaleDateString() : 'N/A'}
                   </div>
                   <span className="text-xs font-extrabold text-amber-600 bg-amber-50 px-3 py-1 rounded-full border border-amber-200">
                     Total Prep Count: {report.totalMeals} meals
