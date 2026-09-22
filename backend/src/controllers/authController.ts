@@ -14,7 +14,10 @@ export class AuthController {
         return res.status(400).json({ success: false, error: 'All fields are required.' });
       }
 
-      const existingUser = await prisma.user.findUnique({ where: { email } });
+      const normalizedEmail = email.trim().toLowerCase();
+      const existingUser = await prisma.user.findFirst({
+        where: { email: { equals: normalizedEmail, mode: 'insensitive' } },
+      });
       if (existingUser) {
         return res.status(400).json({ success: false, error: 'User with this email already exists.' });
       }
@@ -24,7 +27,7 @@ export class AuthController {
       const user = await prisma.user.create({
         data: {
           name,
-          email,
+          email: normalizedEmail,
           phone,
           passwordHash,
           role: role as Role,
@@ -80,8 +83,8 @@ export class AuthController {
 
       const normalizedEmail = email.trim().toLowerCase();
 
-      const user = await prisma.user.findUnique({
-        where: { email: normalizedEmail },
+      const user = await prisma.user.findFirst({
+        where: { email: { equals: normalizedEmail, mode: 'insensitive' } },
         include: {
           chefProfile: true,
         },
