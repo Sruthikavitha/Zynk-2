@@ -10,14 +10,14 @@ export const LandingPage: React.FC = () => {
       <section className="relative overflow-hidden pt-12 md:pt-20 pb-16 px-6">
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div className="space-y-6 text-left">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-50 border border-indigo-100 text-zynk-purple text-xs font-bold shadow-sm">
-              <Sparkles className="w-4 h-4" /> Next-Gen Flexible Food Subscriptions
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold shadow-sm">
+              <Sparkles className="w-4 h-4" /> Tamil Nadu Home Food Subscription
             </div>
             <h1 className="text-4xl md:text-6xl font-extrabold text-slate-900 tracking-tight leading-[1.15]">
-              Good Food • Anytime • <span className="text-zynk-purple">Your Way</span>
+              Fresh From <span className="text-zynk-purple">Tamil Nadu Home Kitchens</span>
             </h1>
             <p className="text-base md:text-lg text-slate-600 leading-relaxed max-w-xl">
-              Fresh meals. Flexible subscriptions. Delivered from trusted cloud kitchens. Skip, swap, or change delivery address every single day before 8:00 PM.
+              Authentic Tamil home-cooked breakfast, lunch, dinner, and healthy meals. Flexible daily delivery from trusted local home chefs across Coimbatore, Chennai, Madurai, and nearby cities.
             </p>
 
             <div className="flex flex-wrap items-center gap-4 pt-2">
@@ -54,8 +54,8 @@ export const LandingPage: React.FC = () => {
           <div className="relative">
             <div className="relative z-10 rounded-3xl overflow-hidden shadow-2xl border-4 border-white bg-white">
               <img
-                src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&auto=format&fit=crop&q=80"
-                alt="ZYNK Fresh Healthy Subscription Meal"
+                src="https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=800&auto=format&fit=crop&q=80"
+                alt="Tamil Nadu home-cooked food"
                 className="w-full h-[440px] object-cover hover:scale-105 transition-transform duration-500"
               />
               {/* Floating Overlay Badge */}
@@ -105,9 +105,9 @@ export const LandingPage: React.FC = () => {
               <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center font-bold shadow-md">
                 <Utensils className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold text-slate-900">Skip or Swap Any Meal</h3>
+              <h3 className="text-lg font-bold text-slate-900">Skip or Swap Your Home Meals</h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Not in the mood for curry? Swap your lunch for Biryani or Paneer Thali, or skip the meal entirely with a single tap.
+                Swap your sambar sadham for a dosa combo, select a different breakfast, or skip a meal entirely with one tap before the daily cutoff.
               </p>
             </div>
 

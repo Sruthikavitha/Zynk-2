@@ -94,8 +94,18 @@ model Chef {
   kitchenName    String
   kitchenType    String         // Home Kitchen, Cloud Kitchen
   location       String
-  fssaiNumber    String?
+  district       String         @default("Coimbatore")
+  city           String         @default("Coimbatore")
+  area           String?
+  address        String?
+  latitude       Float?
+  longitude      Float?
+  cuisine        String?
   description    String?
+  rating         Float?         @default(4.8)
+  isActive       Boolean        @default(true)
+  serviceAreas   String?        // JSON array of serviceable areas
+  fssaiNumber    String?
   approvalStatus ApprovalStatus @default(PENDING)
   approvedAt     DateTime?
   createdAt      DateTime       @default(now())

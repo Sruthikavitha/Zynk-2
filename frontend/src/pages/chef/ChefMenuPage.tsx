@@ -134,7 +134,7 @@ export const ChefMenuPage: React.FC = () => {
         <form onSubmit={handleCreateMeal} className="space-y-4">
           <Input
             label="Meal Name *"
-            placeholder="e.g. Chicken Dum Biryani Special"
+            placeholder="e.g. Ven Pongal / Kuzhi Paniyaram / Sambar Sadham"
             value={name}
             onChange={(e) => setName(e.target.value)}
             required

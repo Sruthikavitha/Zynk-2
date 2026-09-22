@@ -71,10 +71,10 @@ export const CustomerDashboardPage: React.FC = () => {
             <Sparkles className="w-3.5 h-3.5 text-amber-300" /> Premium Daily Nutrition
           </span>
           <h2 className="text-2xl md:text-4xl font-extrabold tracking-tight leading-tight">
-            Fuel Your Day with Fresh & Healthy Meals
+            Fresh Tamil Nadu Home Food for Every Meal
           </h2>
           <p className="text-xs md:text-sm text-purple-100 leading-relaxed">
-            Crafted by certified cloud chefs and delivered straight to your home or college campus.
+            Wholesome idly, pongal, sambar sadham, dosa, and home-style meals prepared by trusted local Tamil home chefs.
           </p>
           <div className="pt-2">
             <Link to="/customer/subscriptions/plans">

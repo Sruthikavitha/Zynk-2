@@ -215,71 +215,71 @@ async function main() {
   });
   console.log('✅ Customers & Address Book created');
 
-  // 5. Create Meals
+  // 5. Create Tamil Nadu Home Food Meals
   const mealsData = [
     {
       chefId: chef1Profile.id,
-      name: 'Traditional South Indian Breakfast Thali',
-      description: 'Fresh Idli (3 pcs), Soft Vada, Sambar, Coconut & Tomato Chutney.',
+      name: 'Idly + Sambar + Coconut Chutney',
+      description: 'Soft idlies served with hot sambar, coconut chutney, and kara chutney.',
       mealType: MealType.BREAKFAST,
       imageUrl: 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=500&auto=format&fit=crop&q=60',
       price: 60.0,
     },
     {
       chefId: chef1Profile.id,
-      name: 'Puri Masala Special',
-      description: 'Fluffy whole wheat puris (4 pcs) served with rich potato masala.',
+      name: 'Ven Pongal + Vadai',
+      description: 'Comforting Tamil Nadu ven pongal with crispy vadai and coconut chutney.',
       mealType: MealType.BREAKFAST,
-      imageUrl: 'https://images.unsplash.com/photo-1626777552726-4a6b54c97e46?w=500&auto=format&fit=crop&q=60',
-      price: 70.0,
+      imageUrl: 'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=500&auto=format&fit=crop&q=60',
+      price: 75.0,
     },
     {
       chefId: chef1Profile.id,
-      name: 'Royal South Indian Meals Thali',
-      description: 'Rice, Sambar, Rasam, Karakuzhambu, Poriyal, Kootu, Curd & Appalam.',
+      name: 'Sambar Sadham + Poriyal',
+      description: 'Freshly cooked rice with sambar, poriyal, appalam, and curd.',
       mealType: MealType.LUNCH,
       imageUrl: 'https://images.unsplash.com/photo-1610192244261-3f33de3f55e4?w=500&auto=format&fit=crop&q=60',
       price: 120.0,
     },
     {
       chefId: chef1Profile.id,
-      name: 'Chicken Dum Biryani Combo',
-      description: 'Fragrant Seeraga Samba Chicken Biryani, Raitha & Salna.',
+      name: 'Lemon Sadham + Appalam',
+      description: 'Tangy lemon rice with poriyal, pickle, and curd for a homestyle lunch.',
       mealType: MealType.LUNCH,
-      imageUrl: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=500&auto=format&fit=crop&q=60',
-      price: 160.0,
+      imageUrl: 'https://images.unsplash.com/photo-1547592180-85f173990554?w=500&auto=format&fit=crop&q=60',
+      price: 110.0,
     },
     {
       chefId: chef1Profile.id,
-      name: 'Paneer Butter Masala & Soft Phulkas',
-      description: '3 Soft Butter Phulkas with creamy Cottage Cheese gravy & Jeera Rice.',
+      name: 'Chapathi + Vegetable Kurma',
+      description: 'Soft chapathis paired with rich vegetable kurma and home-style sides.',
       mealType: MealType.DINNER,
-      imageUrl: 'https://images.unsplash.com/photo-1631452180519-c014fe946bc7?w=500&auto=format&fit=crop&q=60',
+      imageUrl: 'https://images.unsplash.com/photo-1505253716362-afaea1d3d1af?w=500&auto=format&fit=crop&q=60',
       price: 130.0,
     },
     {
       chefId: chef2Profile.id,
-      name: 'Crispy Ghee Roast Dosa',
-      description: 'Golden crunchy ghee dosa with potato filling & special coconut chutney.',
+      name: 'Kuzhi Paniyaram + Kara Chutney',
+      description: 'Golden kuzhi paniyaram with roasted kara chutney and coconut chutney.',
       mealType: MealType.BREAKFAST,
       imageUrl: 'https://images.unsplash.com/photo-1668236543090-82eba5ee5976?w=500&auto=format&fit=crop&q=60',
-      price: 65.0,
+      price: 68.0,
     },
     {
       chefId: chef2Profile.id,
-      name: 'North Indian Executive Thali',
-      description: 'Jeera Rice, 2 Chapathis, Dal Makhani, Paneer Gravy, Salad & Gulab Jamun.',
+      name: 'Full Meals (Rice + Sambar + Rasam + Poriyal)',
+      description: 'Traditional Tamil Nadu lunch plate with rice, kuzhambu, poriyal, appalam, and curd.',
       mealType: MealType.LUNCH,
       imageUrl: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=500&auto=format&fit=crop&q=60',
-      price: 140.0,
+      price: 145.0,
     },
     {
       chefId: chef2Profile.id,
-      name: 'Light Dinner Chapathi & Kadai Veg',
-      description: '3 Whole Wheat Chapathis with mixed vegetable kadai curry.',
+      name: 'Dosa + Sambar + Coconut Chutney',
+      description: 'Crisp dosa served with hot sambar, coconut chutney, and kara chutney.',
       mealType: MealType.DINNER,
-      imageUrl: 'https://images.unsplash.com/photo-1505253716362-afaea1d3d1af?w=500&auto=format&fit=crop&q=60',
-      price: 100.0,
+      imageUrl: 'https://images.unsplash.com/photo-1631452180519-c014fe946bc7?w=500&auto=format&fit=crop&q=60',
+      price: 95.0,
     },
   ];
 
@@ -328,13 +328,13 @@ async function main() {
     },
   });
 
-  // Today Lunch (Swapped to Biryani at College)
+  // Today Lunch (Swapped to a Tamil Nadu lunch combo at college)
   const orderTodayLunch = await prisma.order.create({
     data: {
       userId: customer1.id,
       chefId: chef1Profile.id,
       subscriptionId: subscription.id,
-      mealId: createdMeals[3].id, // Biryani
+      mealId: createdMeals[3].id, // Lemon Sadham + Appalam
       deliveryDate: today,
       mealType: MealType.LUNCH,
       status: OrderStatus.CONFIRMED,
@@ -360,7 +360,7 @@ async function main() {
       userId: customer1.id,
       chefId: chef1Profile.id,
       subscriptionId: subscription.id,
-      mealId: createdMeals[4].id, // Paneer Butter Masala
+      mealId: createdMeals[4].id, // Chapathi + Vegetable Kurma
       deliveryDate: today,
       mealType: MealType.DINNER,
       status: OrderStatus.PREPARING,
@@ -374,7 +374,7 @@ async function main() {
       userId: customer1.id,
       chefId: chef2Profile.id,
       subscriptionId: subscription.id,
-      mealId: createdMeals[5].id, // Ghee Roast Dosa
+      mealId: createdMeals[5].id, // Kuzhi Paniyaram + Kara Chutney
       deliveryDate: tomorrow,
       mealType: MealType.BREAKFAST,
       status: OrderStatus.CONFIRMED,
@@ -386,9 +386,9 @@ async function main() {
   await prisma.order.create({
     data: {
       userId: customer1.id,
-      chefId: chef1Profile.id,
+      chefId: chef2Profile.id,
       subscriptionId: subscription.id,
-      mealId: createdMeals[2].id, // South Indian Meals
+      mealId: createdMeals[6].id, // Full Meals
       deliveryDate: tomorrow,
       mealType: MealType.LUNCH,
       status: OrderStatus.CONFIRMED,
@@ -402,7 +402,7 @@ async function main() {
       userId: customer1.id,
       chefId: chef2Profile.id,
       subscriptionId: subscription.id,
-      mealId: createdMeals[7].id, // Chapathi
+      mealId: createdMeals[7].id, // Dosa + Sambar + Coconut Chutney
       deliveryDate: tomorrow,
       mealType: MealType.DINNER,
       status: OrderStatus.SKIPPED,

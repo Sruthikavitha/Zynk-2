@@ -18,6 +18,8 @@ import ForgotPasswordPage from '../pages/public/ForgotPasswordPage';
 
 // Customer Pages
 import CustomerDashboardPage from '../pages/customer/CustomerDashboardPage';
+import FindKitchenPage from '../pages/customer/FindKitchenPage';
+import KitchenDetailsPage from '../pages/customer/KitchenDetailsPage';
 import SubscriptionPlansPage from '../pages/customer/SubscriptionPlansPage';
 import CustomerSubscriptionsPage from '../pages/customer/CustomerSubscriptionsPage';
 import UpcomingMealsPage from '../pages/customer/UpcomingMealsPage';
@@ -62,6 +64,8 @@ export const AppRoutes: React.FC = () => {
       <Route element={<ProtectedRoute allowedRoles={['CUSTOMER']} />}>
         <Route element={<CustomerLayout />}>
           <Route path="/customer/dashboard" element={<CustomerDashboardPage />} />
+          <Route path="/customer/find-kitchen" element={<FindKitchenPage />} />
+          <Route path="/customer/kitchen/:kitchenId" element={<KitchenDetailsPage />} />
           <Route path="/customer/subscriptions" element={<CustomerSubscriptionsPage />} />
           <Route path="/customer/subscriptions/plans" element={<SubscriptionPlansPage />} />
           <Route path="/customer/meals" element={<UpcomingMealsPage />} />

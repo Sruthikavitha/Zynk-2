@@ -5,6 +5,219 @@ import MealActionService from '../services/mealActionService';
 import CutoffService from '../services/cutoffService';
 
 export class CustomerController {
+  public static async getDistricts(req: AuthenticatedRequest, res: Response) {
+    try {
+      const districts = await prisma.chef.findMany({
+        where: {
+          approvalStatus: 'APPROVED',
+          isActive: true,
+          district: { not: '' },
+        },
+        select: { district: true },
+        distinct: ['district'],
+        orderBy: { district: 'asc' },
+      });
+
+      return res.status(200).json({
+        success: true,
+        districts: districts.map((item) => item.district).filter(Boolean),
+      });
+    } catch (error) {
+      console.error('Error fetching districts:', error);
+      return res.status(500).json({ success: false, error: 'Failed to fetch districts.' });
+    }
+  }
+
+  public static async getKitchens(req: AuthenticatedRequest, res: Response) {
+    try {
+      const { district, q, mealType } = req.query;
+      const districtFilter = typeof district === 'string' && district.trim() ? district.trim() : undefined;
+      const searchTerm = typeof q === 'string' ? q.trim().toLowerCase() : '';
+      const mealTypeFilter = typeof mealType === 'string' ? mealType.toUpperCase() : 'ALL';
+
+      const kitchens = await prisma.chef.findMany({
+        where: {
+          approvalStatus: 'APPROVED',
+          isActive: true,
+          ...(districtFilter ? { district: { equals: districtFilter, mode: 'insensitive' } } : {}),
+          ...(searchTerm ? {
+            OR: [
+              { kitchenName: { contains: searchTerm, mode: 'insensitive' } },
+              { area: { contains: searchTerm, mode: 'insensitive' } },
+              { city: { contains: searchTerm, mode: 'insensitive' } },
+              { address: { contains: searchTerm, mode: 'insensitive' } },
+            ],
+          } : {}),
+        },
+        include: {
+          meals: {
+            where: mealTypeFilter !== 'ALL' ? { mealType: mealTypeFilter as any } : {},
+            orderBy: { createdAt: 'desc' },
+          },
+        },
+        orderBy: { kitchenName: 'asc' },
+      });
+
+      const normalizedKitchens = kitchens.map((kitchen) => ({
+        ...kitchen,
+        serviceAreas: kitchen.serviceAreas ? (typeof kitchen.serviceAreas === 'string' ? JSON.parse(kitchen.serviceAreas) : kitchen.serviceAreas) : [],
+      }));
+
+      const breakfastCount = normalizedKitchens.reduce((sum, kitchen) => sum + kitchen.meals.filter((meal) => meal.mealType === 'BREAKFAST').length, 0);
+      const lunchCount = normalizedKitchens.reduce((sum, kitchen) => sum + kitchen.meals.filter((meal) => meal.mealType === 'LUNCH').length, 0);
+      const dinnerCount = normalizedKitchens.reduce((sum, kitchen) => sum + kitchen.meals.filter((meal) => meal.mealType === 'DINNER').length, 0);
+
+      return res.status(200).json({
+        success: true,
+        district: districtFilter || 'All',
+        count: normalizedKitchens.length,
+        summary: {
+          homeKitchens: normalizedKitchens.length,
+          breakfastMenus: breakfastCount,
+          lunchMenus: lunchCount,
+          dinnerMenus: dinnerCount,
+        },
+        kitchens: normalizedKitchens,
+      });
+    } catch (error) {
+      console.error('Error fetching kitchens:', error);
+      return res.status(500).json({ success: false, error: 'Failed to fetch kitchen list.' });
+    }
+  }
+
+  public static async getKitchenById(req: AuthenticatedRequest, res: Response) {
+    try {
+      const { id } = req.params;
+      const kitchen = await prisma.chef.findFirst({
+        where: {
+          id,
+          approvalStatus: 'APPROVED',
+          isActive: true,
+        },
+        include: {
+          meals: {
+            orderBy: { mealType: 'asc' },
+          },
+        },
+      });
+
+      if (!kitchen) {
+        return res.status(404).json({ success: false, error: 'Kitchen not found.' });
+      }
+
+      return res.status(200).json({
+        success: true,
+        kitchen: {
+          ...kitchen,
+          serviceAreas: kitchen.serviceAreas ? (typeof kitchen.serviceAreas === 'string' ? JSON.parse(kitchen.serviceAreas) : kitchen.serviceAreas) : [],
+        },
+      });
+    } catch (error) {
+      console.error('Error fetching kitchen details:', error);
+      return res.status(500).json({ success: false, error: 'Failed to fetch kitchen details.' });
+    }
+  }
+
+  public static async getKitchenMenu(req: AuthenticatedRequest, res: Response) {
+    try {
+      const { id } = req.params;
+      const meals = await prisma.meal.findMany({
+        where: {
+          chefId: id,
+          isAvailable: true,
+        },
+        orderBy: [{ mealType: 'asc' }, { createdAt: 'desc' }],
+      });
+
+      return res.status(200).json({ success: true, meals });
+    } catch (error) {
+      console.error('Error fetching kitchen menu:', error);
+      return res.status(500).json({ success: false, error: 'Failed to fetch kitchen menu.' });
+    }
+  }
+
+  public static async getKitchenServiceAreas(req: AuthenticatedRequest, res: Response) {
+    try {
+      const { id } = req.params;
+      const kitchen = await prisma.chef.findUnique({
+        where: { id },
+        select: { serviceAreas: true, district: true, city: true, area: true },
+      });
+
+      if (!kitchen) {
+        return res.status(404).json({ success: false, error: 'Kitchen not found.' });
+      }
+
+      const serviceAreas = kitchen.serviceAreas
+        ? (typeof kitchen.serviceAreas === 'string' ? JSON.parse(kitchen.serviceAreas) : kitchen.serviceAreas)
+        : [];
+
+      return res.status(200).json({
+        success: true,
+        serviceAreas,
+        kitchen: {
+          district: kitchen.district,
+          city: kitchen.city,
+          area: kitchen.area,
+        },
+      });
+    } catch (error) {
+      console.error('Error fetching service areas:', error);
+      return res.status(500).json({ success: false, error: 'Failed to fetch kitchen service areas.' });
+    }
+  }
+
+  public static async checkKitchenServiceability(req: AuthenticatedRequest, res: Response) {
+    try {
+      const { id } = req.params;
+      const { district, city, area } = req.body;
+
+      if (!district && !city && !area) {
+        return res.status(400).json({ success: false, error: 'Address details are required to validate serviceability.' });
+      }
+
+      const kitchen = await prisma.chef.findUnique({
+        where: { id },
+      });
+
+      if (!kitchen) {
+        return res.status(404).json({ success: false, error: 'Kitchen not found.' });
+      }
+
+      const parsedAreas = kitchen.serviceAreas
+        ? (typeof kitchen.serviceAreas === 'string' ? JSON.parse(kitchen.serviceAreas) : kitchen.serviceAreas)
+        : [];
+
+      const normalizedDistrict = String(district || kitchen.district || '').trim().toLowerCase();
+      const normalizedCity = String(city || kitchen.city || '').trim().toLowerCase();
+      const normalizedArea = String(area || kitchen.area || '').trim().toLowerCase();
+      const kitchenDistrict = String(kitchen.district || '').trim().toLowerCase();
+      const kitchenCity = String(kitchen.city || '').trim().toLowerCase();
+      const kitchenArea = String(kitchen.area || '').trim().toLowerCase();
+      const areaList = parsedAreas.map((entry: string) => entry.toLowerCase());
+
+      const serviceable = (
+        normalizedDistrict === kitchenDistrict ||
+        normalizedCity === kitchenCity ||
+        normalizedArea === kitchenArea ||
+        areaList.includes(normalizedArea) ||
+        areaList.includes(normalizedCity) ||
+        areaList.includes(normalizedDistrict)
+      );
+
+      return res.status(200).json({
+        success: true,
+        serviceable,
+        message: serviceable
+          ? '✓ This kitchen delivers to your location.'
+          : 'This kitchen does not currently deliver to your selected address.',
+      });
+    } catch (error) {
+      console.error('Error validating kitchen serviceability:', error);
+      return res.status(500).json({ success: false, error: 'Failed to validate kitchen serviceability.' });
+    }
+  }
+
   public static async getDashboard(req: AuthenticatedRequest, res: Response) {
     try {
       const userId = req.user!.userId;

@@ -4,9 +4,9 @@ import { Truck, MapPin, CheckCircle, Clock } from 'lucide-react';
 
 export const AdminDeliveryPage: React.FC = () => {
   const deliveries = [
-    { id: 'del_1', order: 'Royal South Indian Meals', customer: 'Sharan Kumar', location: 'College (KGiSL Institute)', chef: 'ABC Cloud Kitchen', status: 'OUT_FOR_DELIVERY', partner: 'Ramesh (Bike)' },
-    { id: 'del_2', order: 'Paneer Butter Masala', customer: 'Priya Sharma', location: 'Home (Avinashi Road)', chef: 'South Spices Kitchen', status: 'ASSIGNED', partner: 'Karthik (Scooter)' },
-    { id: 'del_3', order: 'Chicken Dum Biryani', customer: 'Rahul Dravid', location: 'Work (Tidel Park)', chef: 'ABC Cloud Kitchen', status: 'DELIVERED', partner: 'Suresh (Bike)' },
+    { id: 'del_1', order: 'Full Meals + Curd', customer: 'Sharan Kumar', location: 'College (KGiSL Institute)', chef: 'Meena Home Kitchen', status: 'OUT_FOR_DELIVERY', partner: 'Ramesh (Bike)' },
+    { id: 'del_2', order: 'Dosa + Sambar', customer: 'Priya Sharma', location: 'Home (Avinashi Road)', chef: 'Coimbatore Home Foods', status: 'ASSIGNED', partner: 'Karthik (Scooter)' },
+    { id: 'del_3', order: 'Ven Pongal + Vadai', customer: 'Rahul Dravid', location: 'Work (Tidel Park)', chef: 'Amma Samayal', status: 'DELIVERED', partner: 'Suresh (Bike)' },
   ];
 
   return (

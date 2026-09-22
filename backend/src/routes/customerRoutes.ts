@@ -8,6 +8,12 @@ const router = Router();
 // Protect all customer endpoints with authentication and CUSTOMER role check
 router.use(authenticate);
 
+router.get('/districts', CustomerController.getDistricts);
+router.get('/kitchens', CustomerController.getKitchens);
+router.get('/kitchens/:id', CustomerController.getKitchenById);
+router.get('/kitchens/:id/menu', CustomerController.getKitchenMenu);
+router.get('/kitchens/:id/service-areas', CustomerController.getKitchenServiceAreas);
+router.post('/kitchens/:id/serviceability', CustomerController.checkKitchenServiceability);
 router.get('/dashboard', CustomerController.getDashboard);
 router.get('/plans', CustomerController.getPlans);
 router.get('/subscriptions', CustomerController.getSubscriptions);

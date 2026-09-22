@@ -29,7 +29,7 @@ export const LoginPage: React.FC = () => {
     setLoading(true);
 
     try {
-      const res = await api.post('/auth/login', { email, password });
+      const res = await api.post('/auth/login', { email: email.trim().toLowerCase(), password });
 
       if (res.data.success) {
         const { token, user } = res.data;
@@ -46,7 +46,7 @@ export const LoginPage: React.FC = () => {
             navigate('/chef/application-status');
           }
         } else {
-          navigate('/customer/dashboard');
+          navigate('/customer/find-kitchen');
         }
       }
     } catch (err: any) {

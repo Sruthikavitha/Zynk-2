@@ -178,7 +178,7 @@ export const ChefRegisterPage: React.FC = () => {
             </label>
             <textarea
               rows={3}
-              placeholder="Specializing in authentic South Indian thalis, organic low-carb meals..."
+              placeholder="Specializing in Tamil Nadu home food such as idly, pongal, sambar sadham, dosa, and healthy home-style meals..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="w-full bg-white border border-slate-200 p-3.5 rounded-xl text-sm text-slate-800 placeholder-slate-400 outline-none focus:ring-2 focus:ring-amber-500"
