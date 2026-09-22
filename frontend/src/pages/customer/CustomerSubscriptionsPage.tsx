@@ -40,9 +40,9 @@ export const CustomerSubscriptionsPage: React.FC = () => {
           <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">My Subscriptions</h1>
           <p className="text-xs text-slate-500 mt-1">View your current active plan and billing history.</p>
         </div>
-        <Link to="/customer/subscriptions/plans">
+        <Link to="/customer/find-kitchen">
           <Button variant="primary" size="sm" icon={<Sparkles className="w-4 h-4" />}>
-            Upgrade / Change Plan
+            Find a Kitchen
           </Button>
         </Link>
       </div>
@@ -54,8 +54,8 @@ export const CustomerSubscriptionsPage: React.FC = () => {
           <p className="text-xs text-slate-500 max-w-sm mx-auto">
             Choose a plan to get daily fresh meals delivered from trusted cloud kitchens.
           </p>
-          <Link to="/customer/subscriptions/plans">
-            <Button variant="primary" size="sm">Browse Subscription Plans</Button>
+          <Link to="/customer/find-kitchen">
+            <Button variant="primary" size="sm">Find Your Kitchen</Button>
           </Link>
         </div>
       ) : (

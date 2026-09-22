@@ -155,10 +155,10 @@ export const CustomerLayout: React.FC = () => {
 
           <div className="flex items-center gap-4">
             <Link
-              to="/customer/subscriptions/plans"
+              to="/customer/find-kitchen"
               className="hidden sm:inline-flex items-center gap-2 text-xs font-bold px-4 py-2 bg-gradient-to-r from-zynk-purple to-indigo-600 text-white rounded-xl shadow-sm hover:shadow-md transition-all"
             >
-              <Sparkles className="w-3.5 h-3.5" /> View Plans
+              <Sparkles className="w-3.5 h-3.5" /> Find a Kitchen
             </Link>
             <div className="w-9 h-9 rounded-full bg-zynk-purple text-white flex items-center justify-center font-bold text-sm shadow-sm">
               {user?.name?.charAt(0) || 'U'}

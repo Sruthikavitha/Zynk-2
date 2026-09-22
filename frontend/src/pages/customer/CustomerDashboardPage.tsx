@@ -77,9 +77,9 @@ export const CustomerDashboardPage: React.FC = () => {
             Wholesome idly, pongal, sambar sadham, dosa, and home-style meals prepared by trusted local Tamil home chefs.
           </p>
           <div className="pt-2">
-            <Link to="/customer/subscriptions/plans">
+            <Link to="/customer/find-kitchen">
               <Button variant="secondary" size="md" className="bg-white text-zynk-purple hover:bg-slate-100">
-                View Plans <ChevronRight className="w-4 h-4 ml-1" />
+                Find Your Kitchen <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             </Link>
           </div>
@@ -121,7 +121,7 @@ export const CustomerDashboardPage: React.FC = () => {
           ) : (
             <div className="text-center py-4 space-y-3">
               <p className="text-xs text-slate-500">You don't have an active subscription yet.</p>
-              <Link to="/customer/subscriptions/plans">
+              <Link to="/customer/find-kitchen">
                 <Button variant="primary" size="sm">Subscribe Now</Button>
               </Link>
             </div>

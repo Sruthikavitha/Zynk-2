@@ -20,7 +20,6 @@ import ForgotPasswordPage from '../pages/public/ForgotPasswordPage';
 import CustomerDashboardPage from '../pages/customer/CustomerDashboardPage';
 import FindKitchenPage from '../pages/customer/FindKitchenPage';
 import KitchenDetailsPage from '../pages/customer/KitchenDetailsPage';
-import SubscriptionPlansPage from '../pages/customer/SubscriptionPlansPage';
 import CustomerSubscriptionsPage from '../pages/customer/CustomerSubscriptionsPage';
 import UpcomingMealsPage from '../pages/customer/UpcomingMealsPage';
 import MealHistoryPage from '../pages/customer/MealHistoryPage';
@@ -67,7 +66,6 @@ export const AppRoutes: React.FC = () => {
           <Route path="/customer/find-kitchen" element={<FindKitchenPage />} />
           <Route path="/customer/kitchen/:kitchenId" element={<KitchenDetailsPage />} />
           <Route path="/customer/subscriptions" element={<CustomerSubscriptionsPage />} />
-          <Route path="/customer/subscriptions/plans" element={<SubscriptionPlansPage />} />
           <Route path="/customer/meals" element={<UpcomingMealsPage />} />
           <Route path="/customer/history" element={<MealHistoryPage />} />
           <Route path="/customer/address" element={<AddressBookPage />} />

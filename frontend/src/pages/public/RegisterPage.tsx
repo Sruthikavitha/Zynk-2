@@ -51,7 +51,7 @@ export const RegisterPage: React.FC = () => {
         const { token, user } = res.data;
         login(token, user);
         showToast('success', 'Account Created!', 'Your ZYNK subscription account is ready.');
-        navigate('/customer/subscriptions/plans');
+        navigate('/customer/find-kitchen');
       }
     } catch (err: any) {
       setError(err.message || 'Registration failed.');
