@@ -1,9 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
+import L from 'leaflet';
 import api from '../../services/api';
 import Button from '../../components/common/Button';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
-import { MapPin, Search, Star, UtensilsCrossed, Sparkles, ChevronRight, MapPinned } from 'lucide-react';
+import { MapPin, Search, Star, UtensilsCrossed, Sparkles, ChevronRight, MapPinned, LocateFixed, X } from 'lucide-react';
+import 'leaflet/dist/leaflet.css';
 
 interface KitchenSummary {
   id: string;
@@ -23,6 +26,23 @@ interface KitchenSummary {
 }
 
 const FILTERS = ['All', 'BREAKFAST', 'LUNCH', 'DINNER', 'VEGETARIAN', 'NON_VEGETARIAN', 'HEALTHY'];
+
+const kitchenIcon = (active: boolean) => L.divIcon({
+  className: 'zynk-kitchen-marker',
+  html: `<span class="${active ? 'active' : ''}">⌂</span>`,
+  iconSize: [38, 38],
+  iconAnchor: [19, 19],
+});
+
+const MapFocus: React.FC<{ kitchen: KitchenSummary | undefined }> = ({ kitchen }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (kitchen?.latitude != null && kitchen.longitude != null) {
+      map.flyTo([kitchen.latitude, kitchen.longitude], 13, { duration: 0.7 });
+    }
+  }, [kitchen, map]);
+  return null;
+};
 
 export const FindKitchenPage: React.FC = () => {
   const navigate = useNavigate();
@@ -87,30 +107,7 @@ export const FindKitchenPage: React.FC = () => {
     });
   }, [kitchens, query]);
 
-  const renderMapMarker = (kitchen: KitchenSummary, index: number) => {
-    const left = 18 + (((Number(kitchen.latitude ?? 11 + index) - 10.5) / 0.7) * 58);
-    const top = 24 + (((Number(kitchen.longitude ?? 77 + index) - 76.2) / 0.7) * 52);
-
-    const isActive = highlightedKitchenId === kitchen.id;
-
-    return (
-      <button
-        key={kitchen.id}
-        type="button"
-        onClick={() => {
-          setHighlightedKitchenId(kitchen.id);
-          navigate(`/customer/kitchen/${kitchen.id}`);
-        }}
-        className={`absolute -translate-x-1/2 -translate-y-1/2 flex items-center justify-center rounded-full border-2 text-[10px] font-bold shadow-lg transition-all ${
-          isActive ? 'bg-zynk-purple border-white text-white w-8 h-8' : 'bg-white border-zynk-purple text-zynk-purple w-6 h-6'
-        }`}
-        style={{ left: `${Math.min(90, Math.max(10, left))}%`, top: `${Math.min(85, Math.max(12, top))}%` }}
-        title={kitchen.kitchenName}
-      >
-        {isActive ? '●' : '•'}
-      </button>
-    );
-  };
+  const selectedKitchen = filteredKitchens.find((kitchen) => kitchen.id === highlightedKitchenId) || filteredKitchens[0];
 
   return (
     <div className="space-y-6">
@@ -140,6 +137,7 @@ export const FindKitchenPage: React.FC = () => {
               placeholder="Search district or area..."
               className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none focus:border-zynk-purple focus:ring-2 focus:ring-zynk-purple/20"
             />
+            {query && <button type="button" onClick={() => setQuery('')} className="absolute right-3 top-2.5 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Clear search"><X className="h-4 w-4" /></button>}
           </div>
 
           <div className="mt-5 space-y-2">
@@ -244,7 +242,8 @@ export const FindKitchenPage: React.FC = () => {
                           ))}
                         </div>
 
-                        <div className="mt-4 flex justify-end">
+                        <div className="mt-4 flex items-center justify-between gap-2">
+                          <button type="button" onClick={() => setHighlightedKitchenId(kitchen.id)} className="inline-flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-zynk-purple"><LocateFixed className="h-3.5 w-3.5" /> Show on map</button>
                           <Button
                             variant={isSelected ? 'primary' : 'outline'}
                             size="sm"
@@ -271,12 +270,20 @@ export const FindKitchenPage: React.FC = () => {
                 </span>
               </div>
 
-              <div className="relative h-[620px] overflow-hidden rounded-2xl border border-slate-200 bg-[radial-gradient(circle_at_center,_rgba(139,92,246,0.12),_rgba(255,255,255,0.8)_55%)]">
-                <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.18)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.18)_1px,transparent_1px)] bg-[size:28px_28px] opacity-60" />
-                <div className="absolute inset-4 rounded-[22px] border border-slate-200 bg-white/40" />
-                {filteredKitchens.length > 0 && filteredKitchens.map((kitchen, index) => renderMapMarker(kitchen, index))}
-                <div className="absolute bottom-4 left-4 rounded-xl bg-white/90 px-3 py-2 text-xs shadow-sm border border-slate-200">
-                  <div className="font-bold uppercase tracking-[0.14em] text-slate-500">Selected District</div>
+              <div className="relative h-[620px] overflow-hidden rounded-2xl border border-slate-200">
+                {filteredKitchens.some((kitchen) => kitchen.latitude != null && kitchen.longitude != null) ? (
+                  <MapContainer center={[Number(selectedKitchen?.latitude || 11.0168), Number(selectedKitchen?.longitude || 76.9558)]} zoom={12} scrollWheelZoom className="h-full w-full">
+                    <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                    <MapFocus kitchen={selectedKitchen} />
+                    {filteredKitchens.map((kitchen) => kitchen.latitude != null && kitchen.longitude != null && (
+                      <Marker key={kitchen.id} position={[kitchen.latitude, kitchen.longitude]} icon={kitchenIcon(kitchen.id === highlightedKitchenId)} eventHandlers={{ click: () => setHighlightedKitchenId(kitchen.id) }}>
+                        <Popup><div className="space-y-2"><strong>{kitchen.kitchenName}</strong><div className="text-xs text-slate-500">{kitchen.area || kitchen.city}</div><button type="button" className="font-bold text-zynk-purple" onClick={() => navigate(`/customer/kitchen/${kitchen.id}`)}>View kitchen</button></div></Popup>
+                      </Marker>
+                    ))}
+                  </MapContainer>
+                ) : <div className="flex h-full items-center justify-center bg-slate-50 text-sm text-slate-500">Map location is not available for these kitchens yet.</div>}
+                <div className="pointer-events-none absolute bottom-4 left-4 z-[500] rounded-xl bg-white/95 px-3 py-2 text-xs shadow-md border border-slate-200">
+                  <div className="font-bold uppercase tracking-[0.14em] text-slate-500">Selected district</div>
                   <div className="mt-1 font-extrabold text-slate-900">{selectedDistrict}</div>
                 </div>
               </div>

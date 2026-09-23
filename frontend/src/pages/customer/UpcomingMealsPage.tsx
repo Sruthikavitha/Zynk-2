@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import { useNotification } from '../../context/NotificationContext';
 import { Order, Meal, Address, CutoffStatus } from '../../types';
@@ -7,7 +8,7 @@ import StatusBadge from '../../components/common/StatusBadge';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import Modal from '../../components/common/Modal';
 import Button from '../../components/common/Button';
-import { Clock, MapPin, ChefHat, RefreshCw, Slash, MapPinOff, Lock, CheckCircle2, UtensilsCrossed } from 'lucide-react';
+import { Clock, MapPin, ChefHat, RefreshCw, Slash, MapPinOff, Lock, CheckCircle2, UtensilsCrossed, Truck } from 'lucide-react';
 
 export const UpcomingMealsPage: React.FC = () => {
   const { showToast } = useNotification();
@@ -203,6 +204,11 @@ export const UpcomingMealsPage: React.FC = () => {
                         <span className="text-slate-600 truncate">{order.deliveryAddress.street}, {order.deliveryAddress.city}</span>
                       </div>
                     </div>
+                    {order.delivery && ['OUT_FOR_DELIVERY', 'DELIVERED'].includes(order.delivery.status) && (
+                      <Link to={`/customer/delivery/${order.delivery.id}`} className="flex items-center justify-center gap-2 rounded-xl bg-indigo-50 px-3 py-2 text-xs font-bold text-zynk-purple hover:bg-indigo-100">
+                        <Truck className="h-3.5 w-3.5" /> Track Delivery
+                      </Link>
+                    )}
                   </div>
                 </div>
 

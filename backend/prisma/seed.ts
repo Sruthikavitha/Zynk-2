@@ -56,6 +56,12 @@ async function main() {
       kitchenName: 'ABC Cloud Kitchen',
       kitchenType: 'Cloud Kitchen',
       location: 'Coimbatore',
+      district: 'Coimbatore',
+      city: 'Coimbatore',
+      area: 'Gandhipuram',
+      address: '100, Gandhipuram, Coimbatore',
+      latitude: 11.0168,
+      longitude: 76.9558,
       fssaiNumber: '12421003000456',
       description: 'Specializing in authentic South & North Indian daily subscription thalis.',
       approvalStatus: ApprovalStatus.APPROVED,
@@ -79,6 +85,12 @@ async function main() {
       kitchenName: 'South Spices Home Kitchen',
       kitchenType: 'Home Kitchen',
       location: 'Tiruppur',
+      district: 'Tiruppur',
+      city: 'Tiruppur',
+      area: 'Avinashi Road',
+      address: '45, Avinashi Road, Tiruppur',
+      latitude: 11.1085,
+      longitude: 77.3411,
       fssaiNumber: '12422004000789',
       description: 'Hygienic home-cooked traditional meals delivered fresh.',
       approvalStatus: ApprovalStatus.APPROVED,
@@ -164,6 +176,8 @@ async function main() {
       city: 'Coimbatore',
       state: 'Tamil Nadu',
       postalCode: '641025',
+      latitude: 11.0365,
+      longitude: 76.9866,
       isDefault: true,
     },
   });
@@ -176,6 +190,8 @@ async function main() {
       city: 'Coimbatore',
       state: 'Tamil Nadu',
       postalCode: '641035',
+      latitude: 11.0798,
+      longitude: 76.9956,
       isDefault: false,
     },
   });
@@ -188,6 +204,8 @@ async function main() {
       city: 'Coimbatore',
       state: 'Tamil Nadu',
       postalCode: '641014',
+      latitude: 11.0168,
+      longitude: 76.9558,
       isDefault: false,
     },
   });
@@ -421,6 +439,35 @@ async function main() {
   });
 
   console.log('✅ Subscriptions, Daily Orders & Meal Actions seeded');
+
+  const deliveryPartnerUser = await prisma.user.create({
+    data: {
+      name: 'Arun Delivery Partner',
+      email: 'delivery@zynk.com',
+      phone: '9876543222',
+      passwordHash: customerPasswordHash,
+      role: Role.DELIVERY_PARTNER,
+    },
+  });
+  const deliveryPartner = await prisma.deliveryPartner.create({
+    data: { userId: deliveryPartnerUser.id, vehicleType: 'Bike', status: 'AVAILABLE', location: 'Coimbatore' },
+  });
+  const trackingOrder = await prisma.order.update({ where: { id: orderTodayLunch.id }, data: { status: OrderStatus.OUT_FOR_DELIVERY } });
+  await prisma.delivery.create({
+    data: {
+      orderId: trackingOrder.id,
+      deliveryPartnerId: deliveryPartner.id,
+      status: 'OUT_FOR_DELIVERY',
+      pickupLatitude: chef1Profile.latitude,
+      pickupLongitude: chef1Profile.longitude,
+      deliveryLatitude: addressCollege.latitude,
+      deliveryLongitude: addressCollege.longitude,
+      currentLatitude: 11.045,
+      currentLongitude: 76.974,
+      lastLocationUpdate: new Date(),
+    },
+  });
+  console.log('✅ Delivery partner and live tracking demo delivery created');
 
   // 7. Initial Daily Report for Today
   const dailyReport = await prisma.dailyReport.create({

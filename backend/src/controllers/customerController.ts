@@ -336,6 +336,7 @@ export class CustomerController {
           chef: true,
           deliveryAddress: true,
           mealActions: true,
+          delivery: true,
         },
         orderBy: [
           { deliveryDate: 'asc' },

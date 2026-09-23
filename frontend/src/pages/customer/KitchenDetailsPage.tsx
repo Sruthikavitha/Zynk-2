@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
 import Button from '../../components/common/Button';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
-import { Star, MapPin, Check, ChefHat, UtensilsCrossed, CalendarDays, Sparkles, CreditCard } from 'lucide-react';
+import { Star, MapPin, Check, ChefHat, UtensilsCrossed, CalendarDays, Sparkles, CreditCard, ArrowLeft, Info } from 'lucide-react';
 
 const MENU_CATEGORIES = ['BREAKFAST', 'LUNCH', 'DINNER'];
 
@@ -27,6 +27,9 @@ export const KitchenDetailsPage: React.FC = () => {
   const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
   const [addresses, setAddresses] = useState<any[]>([]);
   const [serviceability, setServiceability] = useState<{ serviceable: boolean; message: string } | null>(null);
+  const [menuFilter, setMenuFilter] = useState('ALL');
+  const [expandedMealId, setExpandedMealId] = useState<string | null>(null);
+  const [paymentLoading, setPaymentLoading] = useState(false);
 
   useEffect(() => {
     if (!kitchenId) return;
@@ -68,6 +71,21 @@ export const KitchenDetailsPage: React.FC = () => {
     );
   };
 
+  useEffect(() => {
+    if (!selectedAddress || !kitchenId) return;
+    const selected = addresses.find((address) => address.id === selectedAddress);
+    if (!selected) return;
+    setServiceability(null);
+    api.post(`/customer/kitchens/${kitchenId}/serviceability`, {
+      district: selected.city,
+      city: selected.city,
+      area: selected.street,
+    }).then((res) => setServiceability({
+      serviceable: !!res.data.serviceable,
+      message: res.data.message || 'No service data available.',
+    })).catch(() => setServiceability({ serviceable: false, message: 'Unable to validate this address right now.' }));
+  }, [selectedAddress, addresses, kitchenId]);
+
   const handleServiceabilityCheck = async () => {
     if (!selectedAddress) return;
     const selected = addresses.find((address) => address.id === selectedAddress);
@@ -89,12 +107,17 @@ export const KitchenDetailsPage: React.FC = () => {
   };
 
   const handlePayment = async () => {
+    if (!selectedMealTypes.length) {
+      showToast('error', 'Choose a meal slot', 'Select at least one meal before subscribing.');
+      return;
+    }
     if (!serviceability?.serviceable) {
       showToast('error', 'Address not serviceable', 'This kitchen does not deliver to the selected address.');
       return;
     }
 
     try {
+      setPaymentLoading(true);
       const res = await api.post('/payments/create-order', { planId: 'demo-plan' });
       if (!res.data.success) {
         throw new Error(res.data.error || 'Payment setup failed');
@@ -103,6 +126,8 @@ export const KitchenDetailsPage: React.FC = () => {
       navigate('/customer/dashboard');
     } catch (err: any) {
       showToast('error', 'Payment failed', err.message || 'Unable to process payment.');
+    } finally {
+      setPaymentLoading(false);
     }
   };
 
@@ -117,7 +142,9 @@ export const KitchenDetailsPage: React.FC = () => {
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-zynk-purple">
+        <div className="flex items-center gap-4">
+          <button type="button" onClick={() => navigate('/customer/find-kitchen')} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 hover:border-zynk-purple hover:text-zynk-purple"><ArrowLeft className="h-4 w-4" /> Back to kitchens</button>
+          <div className="hidden items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-zynk-purple md:flex">
           <span>District</span>
           <span>→</span>
           <span className="text-slate-900">Kitchen</span>
@@ -127,6 +154,7 @@ export const KitchenDetailsPage: React.FC = () => {
           <span className="text-slate-500">Subscription</span>
           <span>→</span>
           <span className="text-slate-500">Payment</span>
+          </div>
         </div>
       </div>
 
@@ -170,19 +198,24 @@ export const KitchenDetailsPage: React.FC = () => {
               <h2 className="text-xl font-extrabold text-slate-900">Today's Menu</h2>
             </div>
 
+            <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
+              <button type="button" onClick={() => setMenuFilter('ALL')} className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-bold ${menuFilter === 'ALL' ? 'bg-zynk-purple text-white' : 'border border-slate-200 text-slate-600'}`}>All menu</button>
+              {MENU_CATEGORIES.map((type) => <button key={type} type="button" onClick={() => setMenuFilter(type)} className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-bold ${menuFilter === type ? 'bg-zynk-purple text-white' : 'border border-slate-200 text-slate-600'}`}>{mealLabels[type]}</button>)}
+            </div>
+
             <div className="space-y-5">
-              {groupedMenu.map((group) => (
+              {groupedMenu.filter((group) => menuFilter === 'ALL' || group.type === menuFilter).map((group) => (
                 <div key={group.type}>
                   <h3 className="mb-3 text-sm font-extrabold uppercase tracking-[0.12em] text-slate-500">{mealLabels[group.type] || group.type}</h3>
                   <div className="grid gap-3 sm:grid-cols-2">
                     {group.items.length ? group.items.map((item: any) => (
-                      <div key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                      <button key={item.id} type="button" onClick={() => setExpandedMealId(expandedMealId === item.id ? null : item.id)} className={`w-full rounded-2xl border p-3 text-left transition ${expandedMealId === item.id ? 'border-zynk-purple bg-zynk-purple/5 shadow-sm' : 'border-slate-200 bg-slate-50 hover:border-zynk-purple/50'}`}>
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-bold text-slate-800">{item.name}</span>
                           <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500">{item.mealType}</span>
                         </div>
-                        <div className="mt-2 text-xs text-slate-500">{item.description || 'Freshly made with traditional Tamil ingredients.'}</div>
-                      </div>
+                        <div className="mt-2 text-xs text-slate-500">{expandedMealId === item.id ? (item.description || 'Freshly made with traditional Tamil ingredients.') : 'Tap to view meal details'}</div>
+                      </button>
                     )) : (
                       <div className="col-span-full rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">No {mealLabels[group.type].toLowerCase()} menu items available.</div>
                     )}
@@ -230,6 +263,7 @@ export const KitchenDetailsPage: React.FC = () => {
                   <option key={address.id} value={address.id}>{address.label} • {address.street}, {address.city}</option>
                 ))}
               </select>
+              <p className="flex items-center gap-1 text-[11px] text-slate-500"><Info className="h-3.5 w-3.5" /> Changing the address automatically rechecks delivery service.</p>
             </div>
 
             {serviceability ? (
@@ -240,7 +274,7 @@ export const KitchenDetailsPage: React.FC = () => {
 
             <div className="mt-5 flex flex-col gap-3 sm:flex-row">
               <Button variant="outline" onClick={handleServiceabilityCheck}>Check Service Area</Button>
-              <Button variant="primary" icon={<CreditCard className="h-4 w-4" />} onClick={handlePayment}>Subscribe</Button>
+              <Button variant="primary" loading={paymentLoading} disabled={!selectedMealTypes.length || !serviceability?.serviceable} icon={<CreditCard className="h-4 w-4" />} onClick={handlePayment}>Subscribe</Button>
             </div>
           </div>
 

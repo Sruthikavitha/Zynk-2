@@ -103,9 +103,22 @@ export class SubscriptionService {
     }
 
     if (ordersToCreate.length > 0) {
-      await prisma.order.createMany({
-        data: ordersToCreate,
-      });
+      for (const orderData of ordersToCreate) {
+        const orderMeal = availableMeals.find((meal) => meal.id === orderData.mealId);
+        await prisma.order.create({
+          data: {
+            ...orderData,
+            delivery: {
+              create: {
+                pickupLatitude: orderMeal?.chef.latitude,
+                pickupLongitude: orderMeal?.chef.longitude,
+                deliveryLatitude: defaultAddress.latitude,
+                deliveryLongitude: defaultAddress.longitude,
+              },
+            },
+          },
+        });
+      }
     }
 
     return subscription;

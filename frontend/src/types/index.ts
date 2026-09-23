@@ -128,6 +128,26 @@ export interface Order {
   deliveryAddress: Address;
   mealActions?: MealAction[];
   user?: User;
+  delivery?: Delivery;
+}
+
+export interface Delivery {
+  id: string;
+  orderId: string;
+  deliveryPartnerId?: string | null;
+  status: 'ASSIGNED' | 'PICKED_UP' | 'OUT_FOR_DELIVERY' | 'DELIVERED';
+  pickupTime?: string | null;
+  deliveryTime?: string | null;
+  pickupLatitude?: number | null;
+  pickupLongitude?: number | null;
+  deliveryLatitude?: number | null;
+  deliveryLongitude?: number | null;
+  currentLatitude?: number | null;
+  currentLongitude?: number | null;
+  lastLocationUpdate?: string | null;
+  order: Order;
+  deliveryPartner?: { id: string; vehicleType: string; user?: { id: string; name: string; phone: string } } | null;
+  route?: { coordinates: [number, number][]; distanceMeters: number | null; durationSeconds: number | null };
 }
 
 export interface CutoffStatus {

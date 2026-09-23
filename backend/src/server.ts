@@ -9,8 +9,11 @@ import chefRoutes from './routes/chefRoutes';
 import adminRoutes from './routes/adminRoutes';
 import paymentRoutes from './routes/paymentRoutes';
 import systemRoutes from './routes/systemRoutes';
+import deliveryRoutes from './routes/deliveryRoutes';
 
 import { initializeDailyReportCron } from './jobs/dailyReportJob';
+import { createServer } from 'http';
+import { initializeDeliverySocket } from './socket/deliverySocket';
 
 dotenv.config();
 
@@ -42,6 +45,7 @@ app.use('/api/chef', chefRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/system', systemRoutes);
+app.use('/api/deliveries', deliveryRoutes);
 
 // Global Error Handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -54,7 +58,9 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 
 // Start Server & Initialize Jobs
 const PORT = config.port;
-app.listen(PORT, () => {
+const httpServer = createServer(app);
+initializeDeliverySocket(httpServer);
+httpServer.listen(PORT, () => {
   console.log(`=======================================================`);
   console.log(`🚀 ZYNK Backend API running on http://localhost:${PORT}`);
   console.log(`🕒 Daily 8 PM Cutoff Logic Active (${config.defaultCutoffTime})`);

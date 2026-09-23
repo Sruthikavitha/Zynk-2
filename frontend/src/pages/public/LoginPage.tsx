@@ -45,6 +45,8 @@ export const LoginPage: React.FC = () => {
           } else {
             navigate('/chef/application-status');
           }
+        } else if (user.role === 'DELIVERY_PARTNER') {
+          navigate('/delivery/dashboard');
         } else {
           navigate('/customer/find-kitchen');
         }

@@ -25,6 +25,7 @@ import UpcomingMealsPage from '../pages/customer/UpcomingMealsPage';
 import MealHistoryPage from '../pages/customer/MealHistoryPage';
 import AddressBookPage from '../pages/customer/AddressBookPage';
 import CustomerProfilePage from '../pages/customer/CustomerProfilePage';
+import DeliveryTrackingPage from '../pages/customer/DeliveryTrackingPage';
 
 // Chef Pages
 import ChefRegisterPage from '../pages/chef/ChefRegisterPage';
@@ -44,6 +45,7 @@ import AdminOrdersPage from '../pages/admin/AdminOrdersPage';
 import AdminReportsPage from '../pages/admin/AdminReportsPage';
 import AdminDeliveryPage from '../pages/admin/AdminDeliveryPage';
 import AdminSettingsPage from '../pages/admin/AdminSettingsPage';
+import DeliveryPartnerPage from '../pages/delivery/DeliveryPartnerPage';
 
 export const AppRoutes: React.FC = () => {
   return (
@@ -65,11 +67,18 @@ export const AppRoutes: React.FC = () => {
           <Route path="/customer/dashboard" element={<CustomerDashboardPage />} />
           <Route path="/customer/find-kitchen" element={<FindKitchenPage />} />
           <Route path="/customer/kitchen/:kitchenId" element={<KitchenDetailsPage />} />
+          <Route path="/customer/delivery/:deliveryId" element={<DeliveryTrackingPage />} />
           <Route path="/customer/subscriptions" element={<CustomerSubscriptionsPage />} />
           <Route path="/customer/meals" element={<UpcomingMealsPage />} />
           <Route path="/customer/history" element={<MealHistoryPage />} />
           <Route path="/customer/address" element={<AddressBookPage />} />
           <Route path="/customer/profile" element={<CustomerProfilePage />} />
+        </Route>
+      </Route>
+
+      <Route element={<ProtectedRoute allowedRoles={['DELIVERY_PARTNER']} />}>
+        <Route element={<PublicLayout />}>
+          <Route path="/delivery/dashboard" element={<DeliveryPartnerPage />} />
         </Route>
       </Route>
 

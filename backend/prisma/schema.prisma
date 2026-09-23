@@ -68,15 +68,15 @@ enum DeliveryStatus {
 }
 
 model User {
-  id           String      @id @default(uuid())
+  id           String     @id @default(uuid())
   name         String
-  email        String      @unique
+  email        String     @unique
   phone        String
   passwordHash String
-  role         Role        @default(CUSTOMER)
-  status       UserStatus  @default(ACTIVE)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  role         Role       @default(CUSTOMER)
+  status       UserStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
   chefProfile     Chef?
   deliveryPartner DeliveryPartner?
@@ -92,7 +92,7 @@ model Chef {
   id             String         @id @default(uuid())
   userId         String         @unique
   kitchenName    String
-  kitchenType    String         // Home Kitchen, Cloud Kitchen
+  kitchenType    String // Home Kitchen, Cloud Kitchen
   location       String
   district       String         @default("Coimbatore")
   city           String         @default("Coimbatore")
@@ -104,14 +104,14 @@ model Chef {
   description    String?
   rating         Float?         @default(4.8)
   isActive       Boolean        @default(true)
-  serviceAreas   String?        // JSON array of serviceable areas
+  serviceAreas   String? // JSON array of serviceable areas
   fssaiNumber    String?
   approvalStatus ApprovalStatus @default(PENDING)
   approvedAt     DateTime?
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
-  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   meals            Meal[]
   orders           Order[]
   chefDailyReports ChefDailyReport[]
@@ -123,8 +123,8 @@ model SubscriptionPlan {
   description  String
   price        Float
   durationDays Int      @default(7)
-  mealOptions  String   // JSON string or summary of options
-  features     String   // JSON string of features list
+  mealOptions  String // JSON string or summary of options
+  features     String // JSON string of features list
   isAvailable  Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -151,16 +151,18 @@ model Subscription {
 }
 
 model Address {
-  id        String   @id @default(uuid())
-  userId    String
-  label     String   // Home, College, Work, Other
-  street    String
-  city      String
-  state     String
+  id         String   @id @default(uuid())
+  userId     String
+  label      String // Home, College, Work, Other
+  street     String
+  city       String
+  state      String
   postalCode String
-  isDefault Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  latitude   Float?
+  longitude  Float?
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   orders             Order[]      @relation("DeliveryAddress")
@@ -244,13 +246,13 @@ model Payment {
 }
 
 model DailyReport {
-  id                   String            @id @default(uuid())
-  reportDate           DateTime          @unique
-  totalMeals           Int               @default(0)
-  totalSkipped         Int               @default(0)
-  totalSwapped         Int               @default(0)
-  totalAddressChanges  Int               @default(0)
-  createdAt            DateTime          @default(now())
+  id                  String   @id @default(uuid())
+  reportDate          DateTime @unique
+  totalMeals          Int      @default(0)
+  totalSkipped        Int      @default(0)
+  totalSwapped        Int      @default(0)
+  totalAddressChanges Int      @default(0)
+  createdAt           DateTime @default(now())
 
   chefReports ChefDailyReport[]
 }
@@ -263,7 +265,7 @@ model ChefDailyReport {
   lunchCount       Int      @default(0)
   dinnerCount      Int      @default(0)
   totalMeals       Int      @default(0)
-  deliveryGrouping String   // JSON string of location-wise counts
+  deliveryGrouping String // JSON string of location-wise counts
   createdAt        DateTime @default(now())
 
   dailyReport DailyReport @relation(fields: [dailyReportId], references: [id], onDelete: Cascade)
@@ -271,28 +273,54 @@ model ChefDailyReport {
 }
 
 model DeliveryPartner {
-  id          String   @id @default(uuid())
-  userId      String   @unique
-  vehicleType String   // Bike, Scooter, Car
-  status      String   @default("AVAILABLE") // AVAILABLE, BUSY, OFFLINE
-  location    String   @default("Coimbatore")
-  createdAt   DateTime @default(now())
+  id                 String    @id @default(uuid())
+  userId             String    @unique
+  vehicleType        String // Bike, Scooter, Car
+  status             String    @default("AVAILABLE") // AVAILABLE, BUSY, OFFLINE
+  location           String    @default("Coimbatore")
+  currentLatitude    Float?
+  currentLongitude   Float?
+  lastLocationUpdate DateTime?
+  createdAt          DateTime  @default(now())
 
-  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  deliveries Delivery[]
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliveries      Delivery[]
+  locationHistory DeliveryLocation[]
 }
 
 model Delivery {
-  id                String         @id @default(uuid())
-  orderId           String         @unique
-  deliveryPartnerId String?
-  status            DeliveryStatus @default(ASSIGNED)
-  pickupTime        DateTime?
-  deliveryTime      DateTime?
-  createdAt         DateTime       @default(now())
+  id                 String         @id @default(uuid())
+  orderId            String         @unique
+  deliveryPartnerId  String?
+  status             DeliveryStatus @default(ASSIGNED)
+  pickupTime         DateTime?
+  deliveryTime       DateTime?
+  pickupLatitude     Float?
+  pickupLongitude    Float?
+  deliveryLatitude   Float?
+  deliveryLongitude  Float?
+  currentLatitude    Float?
+  currentLongitude   Float?
+  lastLocationUpdate DateTime?
+  createdAt          DateTime       @default(now())
 
-  order           Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  deliveryPartner DeliveryPartner? @relation(fields: [deliveryPartnerId], references: [id])
+  order           Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  deliveryPartner DeliveryPartner?   @relation(fields: [deliveryPartnerId], references: [id])
+  locationHistory DeliveryLocation[]
+}
+
+model DeliveryLocation {
+  id                String   @id @default(uuid())
+  deliveryId        String
+  deliveryPartnerId String
+  latitude          Float
+  longitude         Float
+  createdAt         DateTime @default(now())
+
+  delivery        Delivery        @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  deliveryPartner DeliveryPartner @relation(fields: [deliveryPartnerId], references: [id], onDelete: Cascade)
+
+  @@index([deliveryId, createdAt])
 }
 
 model Notification {
