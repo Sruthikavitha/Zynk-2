@@ -204,7 +204,6 @@ export const KitchenDetailsPage: React.FC = () => {
       showToast('error', 'Dev simulation failed', err.message || 'Simulation failed.');
     } finally {
       setSubscribing(false);
->>>>>>> 4ec3b98 (Implement Razorpay payment integration for customer subscriptions)
     }
   };
 
@@ -486,7 +485,6 @@ export const KitchenDetailsPage: React.FC = () => {
                   </Button>
                 </div>
               </div>
-            </div>
             </div>
           </div>
 
