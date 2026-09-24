@@ -29,10 +29,10 @@ export class PaymentController {
       const userId = req.user!.userId;
       const { planId, razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
 
-      if (!planId || !razorpayOrderId || !razorpayPaymentId) {
+      if (!planId || !razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
         return res.status(400).json({
           success: false,
-          error: 'Plan ID, Razorpay Order ID, and Payment ID are required.',
+          error: 'Plan ID, Razorpay Order ID, Payment ID, and Razorpay Signature are required.',
         });
       }
 

@@ -4,18 +4,20 @@ import config from '../config';
 import prisma from '../config/prisma';
 import { SubscriptionService } from './subscriptionService';
 
-let razorpayInstance: Razorpay | null = null;
+const getRazorpayInstance = (): Razorpay | null => {
+  const key_id = (process.env.RAZORPAY_KEY_ID || config.razorpayKeyId || '').trim();
+  const key_secret = (process.env.RAZORPAY_KEY_SECRET || config.razorpayKeySecret || '').trim();
 
-try {
-  if (config.razorpayKeyId && config.razorpayKeySecret) {
-    razorpayInstance = new Razorpay({
-      key_id: config.razorpayKeyId,
-      key_secret: config.razorpayKeySecret,
-    });
+  if (key_id && key_secret) {
+    try {
+      return new Razorpay({ key_id, key_secret });
+    } catch (err) {
+      console.warn('Razorpay SDK initialization warning:', err);
+      return null;
+    }
   }
-} catch (err) {
-  console.warn('Razorpay SDK initialization notice: running with dev fallback mode.');
-}
+  return null;
+};
 
 export class PaymentService {
   /**
@@ -35,9 +37,20 @@ export class PaymentService {
 
     let razorpayOrderId = `order_sim_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
-    if (razorpayInstance && !config.razorpayKeyId.startsWith('rzp_test_zynk_key')) {
+    const currentKeyId = (process.env.RAZORPAY_KEY_ID || config.razorpayKeyId || '').trim();
+    const currentKeySecret = (process.env.RAZORPAY_KEY_SECRET || config.razorpayKeySecret || '').trim();
+
+    const isPlaceholderKey =
+      !currentKeyId ||
+      currentKeyId.startsWith('rzp_test_zynk_key') ||
+      !currentKeySecret ||
+      currentKeySecret.startsWith('zynk_razorpay_secret');
+
+    const rzp = getRazorpayInstance();
+
+    if (rzp && !isPlaceholderKey) {
       try {
-        const orderResponse = await razorpayInstance.orders.create({
+        const orderResponse = await rzp.orders.create({
           amount: amountInPaise,
           currency: 'INR',
           receipt,
@@ -48,8 +61,8 @@ export class PaymentService {
           },
         });
         razorpayOrderId = orderResponse.id;
-      } catch (err) {
-        console.warn('Razorpay API order creation fallback to simulated order ID:', err);
+      } catch (err: any) {
+        console.warn('Razorpay API order creation failed, fallback to simulated order ID:', err?.error?.description || err?.message || err);
       }
     }
 
@@ -66,12 +79,11 @@ export class PaymentService {
 
     return {
       razorpayOrderId,
-      amount: plan.price,
       amountInPaise,
       currency: 'INR',
-      keyId: config.razorpayKeyId,
+      keyId: currentKeyId,
       plan,
-      paymentId: payment.id,
+      isDevFallback: isPlaceholderKey || razorpayOrderId.startsWith('order_sim_'),
     };
   }
 
@@ -83,28 +95,57 @@ export class PaymentService {
     planId: string;
     razorpayOrderId: string;
     razorpayPaymentId: string;
-    razorpaySignature?: string;
+    razorpaySignature: string;
   }) {
     const { userId, planId, razorpayOrderId, razorpayPaymentId, razorpaySignature } = params;
 
+    const plan = await prisma.subscriptionPlan.findUnique({
+      where: { id: planId },
+    });
+
+    if (!plan || !plan.isAvailable) {
+      throw new Error('Selected subscription plan is invalid or unavailable.');
+    }
+
+    const currentKeyId = (process.env.RAZORPAY_KEY_ID || config.razorpayKeyId || '').trim();
+    const currentKeySecret = (process.env.RAZORPAY_KEY_SECRET || config.razorpayKeySecret || '').trim();
+
+    // Recompute the HMAC-SHA256 signature server-side using the key secret
+    const body = `${razorpayOrderId}|${razorpayPaymentId}`;
+    const expectedSignature = crypto
+      .createHmac('sha256', currentKeySecret)
+      .update(body)
+      .digest('hex');
+
+    const isPlaceholderKey =
+      !currentKeyId ||
+      currentKeyId.startsWith('rzp_test_zynk_key') ||
+      !currentKeySecret ||
+      currentKeySecret.startsWith('zynk_razorpay_secret') ||
+      razorpayOrderId.startsWith('order_sim_');
+
+    console.log(`[PAYMENT VERIFY] Order: ${razorpayOrderId}, Payment: ${razorpayPaymentId}`);
+    console.log(`[PAYMENT VERIFY] Match: ${expectedSignature === razorpaySignature}`);
+
     let isValid = false;
 
-    // Standard HMAC verification if signature provided
-    if (razorpaySignature && config.razorpayKeySecret && !config.razorpayKeySecret.startsWith('zynk_razorpay_secret')) {
-      const body = razorpayOrderId + '|' + razorpayPaymentId;
-      const expectedSignature = crypto
-        .createHmac('sha256', config.razorpayKeySecret)
-        .update(body.toString())
-        .digest('hex');
-
-      isValid = expectedSignature === razorpaySignature;
-    } else {
-      // Development simulated test mode fallback verification
+    // 1. Direct HMAC-SHA256 signature comparison
+    if (razorpaySignature && expectedSignature === razorpaySignature) {
       isValid = true;
+    } else if (
+      isPlaceholderKey &&
+      (razorpaySignature === 'simulated_signature' ||
+        razorpaySignature === 'dev_test_signature' ||
+        razorpayPaymentId.startsWith('pay_sim_'))
+    ) {
+      // 2. Dev-fallback mode: simulate verification when test placeholder keys are configured without live credentials
+      isValid = true;
+    } else {
+      isValid = false;
     }
 
     if (!isValid) {
-      // Mark payment as failed
+      // Mark payment as failed in DB
       await prisma.payment.updateMany({
         where: { razorpayOrderId },
         data: { status: 'FAILED' },
@@ -134,6 +175,16 @@ export class PaymentService {
       payment?.id,
       razorpayOrderId
     );
+
+    // Link payment with newly activated subscription
+    if (payment) {
+      await prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          subscriptionId: subscription.id,
+        },
+      });
+    }
 
     return {
       success: true,

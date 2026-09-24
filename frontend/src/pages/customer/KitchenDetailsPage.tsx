@@ -5,7 +5,9 @@ import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
 import Button from '../../components/common/Button';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
-import { Star, MapPin, Check, ChefHat, UtensilsCrossed, CalendarDays, Sparkles, CreditCard, ArrowLeft, Info } from 'lucide-react';
+import { Star, MapPin, Check, ChefHat, UtensilsCrossed, CalendarDays, Sparkles, CreditCard, ShieldCheck, Zap, ArrowLeft, Info } from 'lucide-react';
+import { SubscriptionPlan } from '../../types';
+import { createPaymentOrder, openRazorpayCheckout, verifyPaymentSignature } from '../../services/paymentService';
 
 const MENU_CATEGORIES = ['BREAKFAST', 'LUNCH', 'DINNER'];
 
@@ -31,6 +33,11 @@ export const KitchenDetailsPage: React.FC = () => {
   const [expandedMealId, setExpandedMealId] = useState<string | null>(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
 
+  // Real Subscription Plans state
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [selectedPlanId, setSelectedPlanId] = useState<string>('');
+  const [subscribing, setSubscribing] = useState<boolean>(false);
+
   useEffect(() => {
     if (!kitchenId) return;
     const fetchKitchen = async () => {
@@ -38,9 +45,17 @@ export const KitchenDetailsPage: React.FC = () => {
         const kitchenRes = await api.get(`/customer/kitchens/${kitchenId}`);
         const menuRes = await api.get(`/customer/kitchens/${kitchenId}/menu`);
         const addrRes = await api.get('/customer/addresses');
+        const plansRes = await api.get('/customer/plans');
 
         if (kitchenRes.data.success) setKitchen(kitchenRes.data.kitchen);
         if (menuRes.data.success) setMenu(menuRes.data.meals || []);
+
+        // Load real subscription plans from database
+        if (plansRes.data.success && plansRes.data.plans?.length) {
+          setPlans(plansRes.data.plans);
+          setSelectedPlanId(plansRes.data.plans[0].id);
+        }
+
         if (addrRes.data.success && addrRes.data.addresses?.length) {
           setAddresses(addrRes.data.addresses);
           const defaultAddress = addrRes.data.addresses.find((addr: any) => addr.isDefault) || addrRes.data.addresses[0];
@@ -107,27 +122,89 @@ export const KitchenDetailsPage: React.FC = () => {
   };
 
   const handlePayment = async () => {
+    if (!user) {
+      showToast('error', 'Login required', 'Please sign in as a customer to subscribe.');
+      navigate('/login');
+      return;
+    }
+
     if (!selectedMealTypes.length) {
       showToast('error', 'Choose a meal slot', 'Select at least one meal before subscribing.');
       return;
     }
-    if (!serviceability?.serviceable) {
+
+    if (!selectedPlanId) {
+      showToast('error', 'No plan selected', 'Please select a subscription plan.');
+      return;
+    }
+
+    if (addresses.length > 0 && serviceability && !serviceability.serviceable) {
       showToast('error', 'Address not serviceable', 'This kitchen does not deliver to the selected address.');
       return;
     }
 
+    setSubscribing(true);
+
     try {
-      setPaymentLoading(true);
-      const res = await api.post('/payments/create-order', { planId: 'demo-plan' });
-      if (!res.data.success) {
-        throw new Error(res.data.error || 'Payment setup failed');
-      }
-      showToast('success', 'Subscription activated', 'Your kitchen subscription has been activated.');
-      navigate('/customer/dashboard');
+      // 1. Create real Razorpay order on backend via Orders API
+      const orderData = await createPaymentOrder(selectedPlanId);
+
+      // 2. Open real Razorpay Checkout modal
+      await openRazorpayCheckout({
+        orderData,
+        user,
+        kitchenName: kitchen?.kitchenName || 'ZYNK Kitchen',
+        onSuccess: () => {
+          setSubscribing(false);
+          showToast('success', 'Subscription activated!', 'Your kitchen subscription has been activated successfully.');
+          navigate('/customer/subscriptions');
+        },
+        onDismiss: () => {
+          setSubscribing(false);
+          showToast('error', 'Payment cancelled', 'You closed the payment checkout. Subscription was not activated.');
+        },
+        onError: (err) => {
+          setSubscribing(false);
+          showToast('error', 'Payment failed', err.message || 'Payment processing failed.');
+        },
+      });
     } catch (err: any) {
-      showToast('error', 'Payment failed', err.message || 'Unable to process payment.');
+      setSubscribing(false);
+      showToast('error', 'Payment setup failed', err.message || 'Unable to initiate payment.');
+    }
+  };
+
+  // Dev fallback simulation handler to test full flow without live credentials
+  const handleSimulatePaymentDev = async () => {
+    if (!selectedPlanId) {
+      showToast('error', 'No plan selected', 'Please select a subscription plan.');
+      return;
+    }
+
+    setSubscribing(true);
+
+    try {
+      // 1. Create order on backend
+      const orderData = await createPaymentOrder(selectedPlanId);
+
+      // 2. Simulate payment verification
+      const simPaymentId = `pay_sim_${Date.now()}`;
+      const verifyRes = await verifyPaymentSignature({
+        planId: selectedPlanId,
+        razorpayOrderId: orderData.razorpayOrderId,
+        razorpayPaymentId: simPaymentId,
+        razorpaySignature: 'simulated_signature',
+      });
+
+      if (verifyRes.success) {
+        showToast('success', 'Subscription activated!', 'Dev Mode: Simulated payment verified and subscription activated successfully.');
+        navigate('/customer/subscriptions');
+      }
+    } catch (err: any) {
+      showToast('error', 'Dev simulation failed', err.message || 'Simulation failed.');
     } finally {
-      setPaymentLoading(false);
+      setSubscribing(false);
+>>>>>>> 4ec3b98 (Implement Razorpay payment integration for customer subscriptions)
     }
   };
 
@@ -228,53 +305,188 @@ export const KitchenDetailsPage: React.FC = () => {
 
         <div className="space-y-6">
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-card">
-            <h2 className="text-xl font-extrabold text-slate-900">Available Subscription</h2>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-extrabold text-slate-900">Choose Subscription Plan</h2>
+                <p className="mt-1 text-xs text-slate-500">Select a real subscription plan for this kitchen</p>
+              </div>
+              <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
+                Fresh Daily
+              </span>
+            </div>
+
+            {/* Plans Selection List */}
             <div className="mt-4 space-y-3">
-              {MENU_CATEGORIES.map((mealType) => (
-                <button
-                  key={mealType}
-                  type="button"
-                  onClick={() => handleMealTypeToggle(mealType)}
-                  className={`flex w-full items-center justify-between rounded-2xl border px-3 py-2.5 text-sm font-semibold transition ${
-                    selectedMealTypes.includes(mealType)
-                      ? 'border-zynk-purple bg-zynk-purple/5 text-zynk-purple'
-                      : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
-                  }`}
-                >
-                  <span>{mealLabels[mealType]}</span>
-                  {selectedMealTypes.includes(mealType) && <Check className="h-4 w-4" />}
-                </button>
-              ))}
+              {plans.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-xs text-slate-500">
+                  Loading subscription plans...
+                </div>
+              ) : (
+                plans.map((plan) => {
+                  const isSelected = selectedPlanId === plan.id;
+                  let parsedFeatures: string[] = [];
+                  try {
+                    parsedFeatures = JSON.parse(plan.features || '[]');
+                  } catch {
+                    parsedFeatures = [];
+                  }
+
+                  return (
+                    <div
+                      key={plan.id}
+                      onClick={() => setSelectedPlanId(plan.id)}
+                      className={`cursor-pointer rounded-2xl border p-4 transition ${
+                        isSelected
+                          ? 'border-zynk-purple bg-zynk-purple/5 shadow-sm ring-2 ring-zynk-purple/30'
+                          : 'border-slate-200 bg-white hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-extrabold text-slate-900">{plan.name}</span>
+                            {isSelected && (
+                              <span className="rounded-full bg-zynk-purple px-2 py-0.5 text-[10px] font-bold text-white">
+                                Selected
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-500">{plan.description}</p>
+                        </div>
+                        <div className="text-right whitespace-nowrap">
+                          <span className="text-lg font-black text-slate-900">₹{plan.price}</span>
+                          <span className="block text-[10px] font-medium text-slate-400">/{plan.durationDays} days</span>
+                        </div>
+                      </div>
+
+                      {parsedFeatures.length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-1.5 pt-2 border-t border-slate-100">
+                          {parsedFeatures.slice(0, 4).map((feat, idx) => (
+                            <span
+                              key={idx}
+                              className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600"
+                            >
+                              ✓ {feat}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
             </div>
 
-            <div className="mt-5 rounded-2xl bg-slate-50 p-3">
-              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Selected Meal Slots</p>
-              <p className="mt-2 text-sm font-bold text-slate-800">{selectedMealTypes.length ? selectedMealTypes.map((type) => mealLabels[type]).join(' + ') : 'None selected'}</p>
-            </div>
-
-            <div className="mt-5 space-y-3">
-              <label className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Delivery Address</label>
-              <select
-                value={selectedAddress ?? ''}
-                onChange={(e) => setSelectedAddress(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-zynk-purple"
-              >
-                {addresses.map((address) => (
-                  <option key={address.id} value={address.id}>{address.label} • {address.street}, {address.city}</option>
+            {/* Meal Slot Customization */}
+            <div className="mt-6 border-t border-slate-100 pt-5">
+              <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Meal Types Included</h3>
+              <div className="mt-3 space-y-2">
+                {MENU_CATEGORIES.map((mealType) => (
+                  <button
+                    key={mealType}
+                    type="button"
+                    onClick={() => handleMealTypeToggle(mealType)}
+                    className={`flex w-full items-center justify-between rounded-xl border px-3 py-2 text-xs font-semibold transition ${
+                      selectedMealTypes.includes(mealType)
+                        ? 'border-zynk-purple bg-zynk-purple/5 text-zynk-purple'
+                        : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                    }`}
+                  >
+                    <span>{mealLabels[mealType]}</span>
+                    {selectedMealTypes.includes(mealType) && <Check className="h-3.5 w-3.5" />}
+                  </button>
                 ))}
-              </select>
-              <p className="flex items-center gap-1 text-[11px] text-slate-500"><Info className="h-3.5 w-3.5" /> Changing the address automatically rechecks delivery service.</p>
+              </div>
+            </div>
+
+            {/* Delivery Address */}
+            <div className="mt-5 space-y-2 border-t border-slate-100 pt-5">
+              <label className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Delivery Address</label>
+              {addresses.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">
+                  No saved addresses found. Default address will be assigned upon subscription.
+                </div>
+              ) : (
+                <>
+                  <select
+                    value={selectedAddress ?? ''}
+                    onChange={(e) => setSelectedAddress(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-zynk-purple"
+                  >
+                    {addresses.map((address) => (
+                      <option key={address.id} value={address.id}>{address.label} • {address.street}, {address.city}</option>
+                    ))}
+                  </select>
+                  <p className="flex items-center gap-1 text-[11px] text-slate-500"><Info className="h-3.5 w-3.5" /> Changing the address automatically rechecks delivery service.</p>
+                </>
+              )}
             </div>
 
             {serviceability ? (
-              <div className={`mt-4 rounded-2xl border px-3 py-2.5 text-sm font-medium ${serviceability.serviceable ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-rose-200 bg-rose-50 text-rose-700'}`}>
+              <div className={`mt-3 rounded-xl border px-3 py-2 text-xs font-medium ${serviceability.serviceable ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-rose-200 bg-rose-50 text-rose-700'}`}>
                 {serviceability.message}
               </div>
             ) : null}
 
-            <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-              <Button variant="outline" onClick={handleServiceabilityCheck}>Check Service Area</Button>
-              <Button variant="primary" loading={paymentLoading} disabled={!selectedMealTypes.length || !serviceability?.serviceable} icon={<CreditCard className="h-4 w-4" />} onClick={handlePayment}>Subscribe</Button>
+            {/* Order & Payment Summary */}
+            {plans.find((p) => p.id === selectedPlanId) && (
+              <div className="mt-5 rounded-2xl bg-slate-50 p-4 border border-slate-100 space-y-2">
+                <div className="flex justify-between text-xs text-slate-600">
+                  <span>Selected Plan:</span>
+                  <span className="font-bold text-slate-800">{plans.find((p) => p.id === selectedPlanId)?.name}</span>
+                </div>
+                <div className="flex justify-between text-xs text-slate-600">
+                  <span>Duration:</span>
+                  <span className="font-bold text-slate-800">{plans.find((p) => p.id === selectedPlanId)?.durationDays} Days</span>
+                </div>
+                <div className="flex justify-between text-xs text-slate-600">
+                  <span>Payment Gateway:</span>
+                  <span className="font-bold text-zynk-purple flex items-center gap-1">
+                    <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" /> Razorpay Checkout
+                  </span>
+                </div>
+                <div className="border-t border-slate-200 pt-2 flex justify-between text-sm">
+                  <span className="font-extrabold text-slate-800">Total Payable:</span>
+                  <span className="font-extrabold text-lg text-zynk-purple">₹{plans.find((p) => p.id === selectedPlanId)?.price}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="mt-5 space-y-3">
+              <div className="flex flex-col gap-2 sm:flex-row">
+                {addresses.length > 0 && (
+                  <Button variant="outline" size="sm" onClick={handleServiceabilityCheck}>Check Area</Button>
+                )}
+                <Button
+                  variant="primary"
+                  className="flex-1"
+                  icon={subscribing ? undefined : <CreditCard className="h-4 w-4" />}
+                  onClick={handlePayment}
+                  disabled={subscribing || !selectedPlanId || !selectedMealTypes.length || !serviceability?.serviceable}
+                >
+                  {subscribing ? 'Processing Razorpay...' : `Subscribe • ₹${plans.find((p) => p.id === selectedPlanId)?.price || 0}`}
+                </Button>
+              </div>
+
+              {/* Dev Fallback Mode simulation card for local developer testing */}
+              <div className="rounded-xl border border-dashed border-amber-200 bg-amber-50/70 p-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="text-[11px] text-amber-800">
+                    <span className="font-bold">Dev Fallback Mode:</span> If testing without live Razorpay credentials, simulate payment activation.
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-[11px] h-7 px-2.5 whitespace-nowrap border-amber-300 text-amber-800 hover:bg-amber-100"
+                    onClick={handleSimulatePaymentDev}
+                    disabled={subscribing || !selectedPlanId}
+                  >
+                    Simulate Payment
+                  </Button>
+                </div>
+              </div>
+            </div>
             </div>
           </div>
 
