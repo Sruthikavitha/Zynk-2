@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Chef" ADD COLUMN "deliveryRadiusKm" DOUBLE PRECISION NOT NULL DEFAULT 5;

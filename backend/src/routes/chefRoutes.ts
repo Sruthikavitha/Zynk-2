@@ -13,6 +13,7 @@ router.get('/application', ChefController.getApplicationStatus);
 // Approved chef protected routes
 router.use(requireRole('CHEF', 'ADMIN'));
 router.get('/dashboard', ChefController.getDashboard);
+router.put('/profile', ChefController.updateProfile);
 router.get('/orders', ChefController.getOrders);
 router.put('/orders/:id/status', ChefController.updateOrderStatus);
 router.get('/reports', ChefController.getReports);

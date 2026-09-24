@@ -1,12 +1,26 @@
 import { Response } from 'express';
 import { AuthenticatedRequest } from '../middleware/auth';
 import prisma from '../config/prisma';
+import geocodingService from '../services/geocodingService';
 
 export class ChefController {
   public static async registerChef(req: AuthenticatedRequest, res: Response) {
     try {
       const userId = req.user!.userId;
-      const { kitchenName, kitchenType, location, fssaiNumber, description } = req.body;
+      const {
+        kitchenName,
+        kitchenType,
+        location,
+        fssaiNumber,
+        description,
+        address,
+        city,
+        area,
+        district,
+        deliveryRadiusKm,
+        latitude,
+        longitude,
+      } = req.body;
 
       if (!kitchenName || !kitchenType || !location) {
         return res.status(400).json({ success: false, error: 'Kitchen name, type, and location are required.' });
@@ -17,10 +31,25 @@ export class ChefController {
         return res.status(400).json({ success: false, error: 'Chef application already submitted.' });
       }
 
+      let lat = latitude != null && !isNaN(parseFloat(latitude)) ? parseFloat(latitude) : null;
+      let lng = longitude != null && !isNaN(parseFloat(longitude)) ? parseFloat(longitude) : null;
+
+      // Geocode kitchen location if not provided
+      if (lat == null || lng == null) {
+        const query = [address || area, city || location, district || 'Coimbatore', 'Tamil Nadu'].filter(Boolean).join(', ');
+        const coords = await geocodingService.geocodeLocationString(query) || await geocodingService.geocodeLocationString(location);
+        if (coords) {
+          lat = coords.lat;
+          lng = coords.lng;
+        }
+      }
+
       await prisma.user.update({
         where: { id: userId },
         data: { role: 'CHEF' },
       });
+
+      const radius = deliveryRadiusKm != null && !isNaN(parseFloat(deliveryRadiusKm)) ? parseFloat(deliveryRadiusKm) : 5.0;
 
       const chef = await prisma.chef.create({
         data: {
@@ -28,8 +57,15 @@ export class ChefController {
           kitchenName,
           kitchenType,
           location,
+          address: address || null,
+          city: city || location,
+          area: area || null,
+          district: district || 'Coimbatore',
           fssaiNumber,
           description,
+          latitude: lat,
+          longitude: lng,
+          deliveryRadiusKm: radius,
           approvalStatus: 'PENDING',
         },
       });
@@ -42,6 +78,70 @@ export class ChefController {
     } catch (error) {
       console.error('Error in chef registration:', error);
       return res.status(500).json({ success: false, error: 'Failed to submit chef application.' });
+    }
+  }
+
+  public static async updateProfile(req: AuthenticatedRequest, res: Response) {
+    try {
+      const userId = req.user!.userId;
+      const chef = await prisma.chef.findUnique({ where: { userId } });
+      if (!chef) {
+        return res.status(404).json({ success: false, error: 'Chef profile not found.' });
+      }
+
+      const {
+        kitchenName,
+        kitchenType,
+        location,
+        address,
+        city,
+        area,
+        district,
+        deliveryRadiusKm,
+        cuisine,
+        description,
+        serviceAreas,
+        latitude,
+        longitude,
+      } = req.body;
+
+      let lat = latitude != null && !isNaN(parseFloat(latitude)) ? parseFloat(latitude) : chef.latitude;
+      let lng = longitude != null && !isNaN(parseFloat(longitude)) ? parseFloat(longitude) : chef.longitude;
+
+      // Geocode if location fields changed and new coordinates were not manually passed
+      const locChanged = (address && address !== chef.address) || (area && area !== chef.area) || (city && city !== chef.city) || (location && location !== chef.location);
+      if (locChanged && (latitude == null || longitude == null)) {
+        const query = [address || area, city || location || chef.city, district || chef.district, 'Tamil Nadu'].filter(Boolean).join(', ');
+        const coords = await geocodingService.geocodeLocationString(query) || await geocodingService.geocodeLocationString(location || chef.location);
+        if (coords) {
+          lat = coords.lat;
+          lng = coords.lng;
+        }
+      }
+
+      const updatedChef = await prisma.chef.update({
+        where: { id: chef.id },
+        data: {
+          kitchenName: kitchenName || chef.kitchenName,
+          kitchenType: kitchenType || chef.kitchenType,
+          location: location || chef.location,
+          address: address !== undefined ? address : chef.address,
+          city: city || chef.city,
+          area: area !== undefined ? area : chef.area,
+          district: district || chef.district,
+          cuisine: cuisine !== undefined ? cuisine : chef.cuisine,
+          description: description !== undefined ? description : chef.description,
+          serviceAreas: serviceAreas !== undefined ? (typeof serviceAreas === 'string' ? serviceAreas : JSON.stringify(serviceAreas)) : chef.serviceAreas,
+          deliveryRadiusKm: deliveryRadiusKm != null && !isNaN(parseFloat(deliveryRadiusKm)) ? parseFloat(deliveryRadiusKm) : chef.deliveryRadiusKm,
+          latitude: lat,
+          longitude: lng,
+        },
+      });
+
+      return res.status(200).json({ success: true, message: 'Chef profile updated successfully.', chef: updatedChef });
+    } catch (error) {
+      console.error('Error updating chef profile:', error);
+      return res.status(500).json({ success: false, error: 'Failed to update chef profile.' });
     }
   }
 

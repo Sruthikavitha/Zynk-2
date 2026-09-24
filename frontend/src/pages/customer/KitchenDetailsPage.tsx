@@ -5,8 +5,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
 import Button from '../../components/common/Button';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
-import { Star, MapPin, Check, ChefHat, UtensilsCrossed, CalendarDays, Sparkles, CreditCard, ShieldCheck, Zap, ArrowLeft, Info } from 'lucide-react';
-import { SubscriptionPlan } from '../../types';
+import { Star, MapPin, Check, ChefHat, UtensilsCrossed, CalendarDays, Sparkles, CreditCard, ShieldCheck, Zap, ArrowLeft, Info, CheckCircle2, AlertTriangle, Navigation } from 'lucide-react';
+import { SubscriptionPlan, Address } from '../../types';
 import { createPaymentOrder, openRazorpayCheckout, verifyPaymentSignature } from '../../services/paymentService';
 
 const MENU_CATEGORIES = ['BREAKFAST', 'LUNCH', 'DINNER'];
@@ -27,8 +27,14 @@ export const KitchenDetailsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedMealTypes, setSelectedMealTypes] = useState<string[]>(['BREAKFAST', 'LUNCH', 'DINNER']);
   const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
-  const [addresses, setAddresses] = useState<any[]>([]);
-  const [serviceability, setServiceability] = useState<{ serviceable: boolean; message: string } | null>(null);
+  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [serviceability, setServiceability] = useState<{
+    serviceable: boolean;
+    message: string;
+    distanceKm?: number | null;
+    distanceFormatted?: string | null;
+    deliveryRadiusKm?: number | null;
+  } | null>(null);
   const [menuFilter, setMenuFilter] = useState('ALL');
   const [expandedMealId, setExpandedMealId] = useState<string | null>(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
@@ -92,11 +98,19 @@ export const KitchenDetailsPage: React.FC = () => {
     if (!selected) return;
     setServiceability(null);
     api.post(`/customer/kitchens/${kitchenId}/serviceability`, {
-      district: selected.city,
+      addressId: selected.id,
+      latitude: selected.latitude,
+      longitude: selected.longitude,
+      street: selected.street,
       city: selected.city,
+      district: selected.city,
       area: selected.street,
+      postalCode: selected.postalCode,
     }).then((res) => setServiceability({
       serviceable: !!res.data.serviceable,
+      distanceKm: res.data.distanceKm,
+      distanceFormatted: res.data.distanceFormatted,
+      deliveryRadiusKm: res.data.deliveryRadiusKm,
       message: res.data.message || 'No service data available.',
     })).catch(() => setServiceability({ serviceable: false, message: 'Unable to validate this address right now.' }));
   }, [selectedAddress, addresses, kitchenId]);
@@ -108,12 +122,20 @@ export const KitchenDetailsPage: React.FC = () => {
 
     try {
       const res = await api.post(`/customer/kitchens/${kitchenId}/serviceability`, {
-        district: selected.city,
+        addressId: selected.id,
+        latitude: selected.latitude,
+        longitude: selected.longitude,
+        street: selected.street,
         city: selected.city,
+        district: selected.city,
         area: selected.street,
+        postalCode: selected.postalCode,
       });
       setServiceability({
         serviceable: !!res.data.serviceable,
+        distanceKm: res.data.distanceKm,
+        distanceFormatted: res.data.distanceFormatted,
+        deliveryRadiusKm: res.data.deliveryRadiusKm,
         message: res.data.message || 'No service data available.',
       });
     } catch (err: any) {
@@ -422,8 +444,34 @@ export const KitchenDetailsPage: React.FC = () => {
             </div>
 
             {serviceability ? (
-              <div className={`mt-3 rounded-xl border px-3 py-2 text-xs font-medium ${serviceability.serviceable ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-rose-200 bg-rose-50 text-rose-700'}`}>
-                {serviceability.message}
+              <div className={`mt-3 rounded-2xl border p-3.5 text-xs font-medium space-y-1.5 transition ${
+                serviceability.serviceable
+                  ? 'border-emerald-200 bg-emerald-50/80 text-emerald-800'
+                  : 'border-rose-200 bg-rose-50/80 text-rose-800'
+              }`}>
+                <div className="flex items-center justify-between font-bold">
+                  <span className="flex items-center gap-1.5">
+                    {serviceability.serviceable ? (
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600 flex-shrink-0" />
+                    ) : (
+                      <AlertTriangle className="h-4 w-4 text-rose-600 flex-shrink-0" />
+                    )}
+                    {serviceability.serviceable ? 'Serviceable Delivery Area' : 'Outside Delivery Radius'}
+                  </span>
+                  {serviceability.distanceFormatted && (
+                    <span className="rounded-full bg-white/90 border border-slate-200/60 px-2 py-0.5 text-[11px] font-bold shadow-sm flex items-center gap-1 text-slate-800">
+                      <Navigation className="h-2.5 w-2.5 fill-slate-700 text-slate-700" />
+                      {serviceability.distanceFormatted}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] leading-relaxed opacity-95">{serviceability.message}</p>
+                {serviceability.deliveryRadiusKm != null && (
+                  <div className="text-[10px] text-slate-500 pt-1.5 border-t border-slate-200/50 flex items-center justify-between">
+                    <span>Kitchen Delivery Limit:</span>
+                    <span className="font-semibold text-slate-700">{serviceability.deliveryRadiusKm} km max radius</span>
+                  </div>
+                )}
               </div>
             ) : null}
 

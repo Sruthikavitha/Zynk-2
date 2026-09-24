@@ -60,8 +60,10 @@ async function main() {
       city: 'Coimbatore',
       area: 'Gandhipuram',
       address: '100, Gandhipuram, Coimbatore',
-      latitude: 11.0168,
-      longitude: 76.9558,
+      latitude: 11.0183,
+      longitude: 76.9678,
+      deliveryRadiusKm: 7.0,
+      serviceAreas: JSON.stringify(['Gandhipuram', 'Peelamedu', 'RS Puram', 'Ram Nagar']),
       fssaiNumber: '12421003000456',
       description: 'Specializing in authentic South & North Indian daily subscription thalis.',
       approvalStatus: ApprovalStatus.APPROVED,
@@ -84,13 +86,15 @@ async function main() {
       userId: chef2User.id,
       kitchenName: 'South Spices Home Kitchen',
       kitchenType: 'Home Kitchen',
-      location: 'Tiruppur',
-      district: 'Tiruppur',
-      city: 'Tiruppur',
-      area: 'Avinashi Road',
-      address: '45, Avinashi Road, Tiruppur',
-      latitude: 11.1085,
-      longitude: 77.3411,
+      location: 'Coimbatore',
+      district: 'Coimbatore',
+      city: 'Coimbatore',
+      area: 'Peelamedu',
+      address: '45, Avinashi Road, Peelamedu, Coimbatore',
+      latitude: 11.0278,
+      longitude: 76.9986,
+      deliveryRadiusKm: 5.0,
+      serviceAreas: JSON.stringify(['Peelamedu', 'Hope College', 'Civil Aerodrome', 'Hopes']),
       fssaiNumber: '12422004000789',
       description: 'Hygienic home-cooked traditional meals delivered fresh.',
       approvalStatus: ApprovalStatus.APPROVED,
@@ -98,29 +102,38 @@ async function main() {
     },
   });
 
-  // Pending Chef Application
-  const pendingChefUser = await prisma.user.create({
+  // Approved Chef 3 in RS Puram
+  const chef3User = await prisma.user.create({
     data: {
       name: 'Chef Vikram Singh',
-      email: 'newchef@zynk.com',
+      email: 'chef3@zynk.com',
       phone: '9876543213',
       passwordHash: chefPasswordHash,
       role: Role.CHEF,
     },
   });
 
-  await prisma.chef.create({
+  const chef3Profile = await prisma.chef.create({
     data: {
-      userId: pendingChefUser.id,
-      kitchenName: 'FreshBite Organic Kitchen',
+      userId: chef3User.id,
+      kitchenName: 'FreshBite Healthy Kitchen',
       kitchenType: 'Cloud Kitchen',
       location: 'Coimbatore',
+      district: 'Coimbatore',
+      city: 'Coimbatore',
+      area: 'RS Puram',
+      address: 'DB Road, RS Puram, Coimbatore',
+      latitude: 11.0088,
+      longitude: 76.9472,
+      deliveryRadiusKm: 6.0,
+      serviceAreas: JSON.stringify(['RS Puram', 'Town Hall', 'Race Course', 'Gandhipuram']),
       fssaiNumber: '12423005000999',
-      description: 'Organic high-protein custom fitness subscriptions.',
-      approvalStatus: ApprovalStatus.PENDING,
+      description: 'Organic high-protein custom fitness subscriptions and balanced Tamil meals.',
+      approvalStatus: ApprovalStatus.APPROVED,
+      approvedAt: new Date(),
     },
   });
-  console.log('✅ Chefs created (ABC Cloud Kitchen, South Spices, FreshBite Pending)');
+  console.log('✅ Chefs created (ABC Cloud Kitchen, South Spices, FreshBite Healthy Kitchen)');
 
   // 3. Create Subscription Plans
   const planBasic = await prisma.subscriptionPlan.create({
@@ -228,6 +241,8 @@ async function main() {
       city: 'Coimbatore',
       state: 'Tamil Nadu',
       postalCode: '641018',
+      latitude: 11.0260,
+      longitude: 76.9950,
       isDefault: true,
     },
   });
@@ -298,6 +313,30 @@ async function main() {
       mealType: MealType.DINNER,
       imageUrl: 'https://images.unsplash.com/photo-1631452180519-c014fe946bc7?w=500&auto=format&fit=crop&q=60',
       price: 95.0,
+    },
+    {
+      chefId: chef3Profile.id,
+      name: 'Organic Millet Idly + Herbal Sambar',
+      description: 'Fiber-rich multi-millet idlies served with drumstick sambar and fresh mint chutney.',
+      mealType: MealType.BREAKFAST,
+      imageUrl: 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=500&auto=format&fit=crop&q=60',
+      price: 85.0,
+    },
+    {
+      chefId: chef3Profile.id,
+      name: 'High-Protein Tamil Veg Thali',
+      description: 'Brown rice, sprout salad, paneer/tofu poriyal, dal, and fresh probiotic buttermilk.',
+      mealType: MealType.LUNCH,
+      imageUrl: 'https://images.unsplash.com/photo-1610192244261-3f33de3f55e4?w=500&auto=format&fit=crop&q=60',
+      price: 160.0,
+    },
+    {
+      chefId: chef3Profile.id,
+      name: 'Ragi Roti + Mixed Veg Curry',
+      description: 'Traditional wholesome finger-millet rotis served with rich vegetable gravy.',
+      mealType: MealType.DINNER,
+      imageUrl: 'https://images.unsplash.com/photo-1505253716362-afaea1d3d1af?w=500&auto=format&fit=crop&q=60',
+      price: 135.0,
     },
   ];
 

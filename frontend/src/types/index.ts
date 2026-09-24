@@ -38,6 +38,10 @@ export interface Chef {
   address?: string;
   latitude?: number | null;
   longitude?: number | null;
+  deliveryRadiusKm?: number;
+  distanceKm?: number | null;
+  distanceFormatted?: string | null;
+  isWithinRadius?: boolean;
   cuisine?: string;
   description?: string;
   rating?: number | null;
@@ -82,6 +86,8 @@ export interface Address {
   city: string;
   state: string;
   postalCode: string;
+  latitude?: number | null;
+  longitude?: number | null;
   isDefault: boolean;
 }
 

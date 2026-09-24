@@ -3,6 +3,8 @@ import { AuthenticatedRequest } from '../middleware/auth';
 import prisma from '../config/prisma';
 import MealActionService from '../services/mealActionService';
 import CutoffService from '../services/cutoffService';
+import { calculateDistanceKm, formatDistance } from '../utils/geo';
+import geocodingService from '../services/geocodingService';
 
 export class CustomerController {
   public static async getDistricts(req: AuthenticatedRequest, res: Response) {
@@ -30,11 +32,40 @@ export class CustomerController {
 
   public static async getKitchens(req: AuthenticatedRequest, res: Response) {
     try {
-      const { district, q, mealType } = req.query;
-      const districtFilter = typeof district === 'string' && district.trim() ? district.trim() : undefined;
+      const { district, q, mealType, lat, lng, addressId } = req.query;
+      const districtFilter = typeof district === 'string' && district.trim() && district.trim().toLowerCase() !== 'all' ? district.trim() : undefined;
       const searchTerm = typeof q === 'string' ? q.trim().toLowerCase() : '';
       const mealTypeFilter = typeof mealType === 'string' ? mealType.toUpperCase() : 'ALL';
 
+      // 1. Determine customer reference coordinates
+      let customerLat: number | null = null;
+      let customerLng: number | null = null;
+
+      if (lat && lng && !isNaN(parseFloat(lat as string)) && !isNaN(parseFloat(lng as string))) {
+        customerLat = parseFloat(lat as string);
+        customerLng = parseFloat(lng as string);
+      } else if (addressId && typeof addressId === 'string') {
+        const address = await prisma.address.findUnique({ where: { id: addressId } });
+        if (address?.latitude != null && address?.longitude != null) {
+          customerLat = address.latitude;
+          customerLng = address.longitude;
+        }
+      } else if (req.user?.userId) {
+        // Fall back to customer's default address (or most recently added address)
+        const userAddress = await prisma.address.findFirst({
+          where: { userId: req.user.userId, isDefault: true },
+        }) || await prisma.address.findFirst({
+          where: { userId: req.user.userId },
+          orderBy: { createdAt: 'desc' },
+        });
+
+        if (userAddress?.latitude != null && userAddress?.longitude != null) {
+          customerLat = userAddress.latitude;
+          customerLng = userAddress.longitude;
+        }
+      }
+
+      // 2. Fetch active approved kitchens with optional search & district filters
       const kitchens = await prisma.chef.findMany({
         where: {
           approvalStatus: 'APPROVED',
@@ -58,10 +89,54 @@ export class CustomerController {
         orderBy: { kitchenName: 'asc' },
       });
 
-      const normalizedKitchens = kitchens.map((kitchen) => ({
-        ...kitchen,
-        serviceAreas: kitchen.serviceAreas ? (typeof kitchen.serviceAreas === 'string' ? JSON.parse(kitchen.serviceAreas) : kitchen.serviceAreas) : [],
-      }));
+      // 3. Compute real distance for each kitchen using Haversine formula
+      let normalizedKitchens = kitchens.map((kitchen) => {
+        const parsedServiceAreas = kitchen.serviceAreas
+          ? (typeof kitchen.serviceAreas === 'string' ? JSON.parse(kitchen.serviceAreas) : kitchen.serviceAreas)
+          : [];
+
+        let distanceKm: number | null = null;
+        let distanceFormatted: string | null = null;
+        const radius = kitchen.deliveryRadiusKm ?? 5.0;
+        let isWithinRadius = true;
+
+        if (customerLat != null && customerLng != null && kitchen.latitude != null && kitchen.longitude != null) {
+          distanceKm = calculateDistanceKm(customerLat, customerLng, kitchen.latitude, kitchen.longitude);
+          distanceFormatted = formatDistance(distanceKm);
+          isWithinRadius = distanceKm <= radius;
+        }
+
+        return {
+          ...kitchen,
+          deliveryRadiusKm: radius,
+          serviceAreas: parsedServiceAreas,
+          distanceKm,
+          distanceFormatted,
+          isWithinRadius,
+        };
+      });
+
+      // 4. If customer coordinates are present:
+      // a) Filter out kitchens outside their deliveryRadiusKm (if distance could be calculated)
+      // b) Sort nearest kitchens first
+      if (customerLat != null && customerLng != null) {
+        normalizedKitchens = normalizedKitchens
+          .filter((k) => {
+            if (k.distanceKm != null) {
+              return k.isWithinRadius;
+            }
+            // Graceful fallback: If a kitchen has no coordinates, keep it so it's not hidden
+            return true;
+          })
+          .sort((a, b) => {
+            if (a.distanceKm != null && b.distanceKm != null) {
+              return a.distanceKm - b.distanceKm;
+            }
+            if (a.distanceKm != null) return -1;
+            if (b.distanceKm != null) return 1;
+            return a.kitchenName.localeCompare(b.kitchenName);
+          });
+      }
 
       const breakfastCount = normalizedKitchens.reduce((sum, kitchen) => sum + kitchen.meals.filter((meal) => meal.mealType === 'BREAKFAST').length, 0);
       const lunchCount = normalizedKitchens.reduce((sum, kitchen) => sum + kitchen.meals.filter((meal) => meal.mealType === 'LUNCH').length, 0);
@@ -71,6 +146,7 @@ export class CustomerController {
         success: true,
         district: districtFilter || 'All',
         count: normalizedKitchens.length,
+        customerCoordinates: customerLat != null && customerLng != null ? { lat: customerLat, lng: customerLng } : null,
         summary: {
           homeKitchens: normalizedKitchens.length,
           breakfastMenus: breakfastCount,
@@ -170,11 +246,7 @@ export class CustomerController {
   public static async checkKitchenServiceability(req: AuthenticatedRequest, res: Response) {
     try {
       const { id } = req.params;
-      const { district, city, area } = req.body;
-
-      if (!district && !city && !area) {
-        return res.status(400).json({ success: false, error: 'Address details are required to validate serviceability.' });
-      }
+      const { district, city, area, street, postalCode, addressId, lat, lng, latitude, longitude } = req.body;
 
       const kitchen = await prisma.chef.findUnique({
         where: { id },
@@ -184,6 +256,73 @@ export class CustomerController {
         return res.status(404).json({ success: false, error: 'Kitchen not found.' });
       }
 
+      const deliveryRadiusKm = kitchen.deliveryRadiusKm ?? 5.0;
+
+      // 1. Determine customer coordinates
+      let userLat: number | null = null;
+      let userLng: number | null = null;
+
+      const inputLat = lat ?? latitude;
+      const inputLng = lng ?? longitude;
+      if (inputLat != null && inputLng != null && !isNaN(parseFloat(inputLat)) && !isNaN(parseFloat(inputLng))) {
+        userLat = parseFloat(inputLat);
+        userLng = parseFloat(inputLng);
+      } else if (addressId && typeof addressId === 'string') {
+        const address = await prisma.address.findUnique({ where: { id: addressId } });
+        if (address?.latitude != null && address?.longitude != null) {
+          userLat = address.latitude;
+          userLng = address.longitude;
+        } else if (address) {
+          // Geocode on the fly if coordinates were not yet populated
+          const coords = await geocodingService.geocodeAddress({
+            street: address.street,
+            city: address.city,
+            state: address.state,
+            postalCode: address.postalCode,
+          });
+          if (coords) {
+            userLat = coords.lat;
+            userLng = coords.lng;
+            await prisma.address.update({
+              where: { id: address.id },
+              data: { latitude: coords.lat, longitude: coords.lng },
+            }).catch(() => {});
+          }
+        }
+      } else if (street || city || area || district || postalCode) {
+        // Geocode the provided address fields
+        const coords = await geocodingService.geocodeAddress({
+          street: street || area,
+          area,
+          city: city || district,
+          state: 'Tamil Nadu',
+          postalCode,
+        });
+        if (coords) {
+          userLat = coords.lat;
+          userLng = coords.lng;
+        }
+      }
+
+      // 2. Real distance-based serviceability check
+      if (userLat != null && userLng != null && kitchen.latitude != null && kitchen.longitude != null) {
+        const distanceKm = calculateDistanceKm(userLat, userLng, kitchen.latitude, kitchen.longitude);
+        const serviceable = distanceKm <= deliveryRadiusKm;
+        const formatted = formatDistance(distanceKm);
+
+        return res.status(200).json({
+          success: true,
+          serviceable,
+          distanceKm,
+          distanceFormatted: formatted,
+          deliveryRadiusKm,
+          message: serviceable
+            ? `✓ This kitchen delivers to your location (${formatted}, delivery radius is ${deliveryRadiusKm} km).`
+            : `This kitchen is ${formatted}, which exceeds its ${deliveryRadiusKm} km delivery radius.`,
+        });
+      }
+
+      // 3. Graceful fallback: string-based matching if coordinates could not be resolved
       const parsedAreas = kitchen.serviceAreas
         ? (typeof kitchen.serviceAreas === 'string' ? JSON.parse(kitchen.serviceAreas) : kitchen.serviceAreas)
         : [];
@@ -208,9 +347,10 @@ export class CustomerController {
       return res.status(200).json({
         success: true,
         serviceable,
+        deliveryRadiusKm,
         message: serviceable
-          ? '✓ This kitchen delivers to your location.'
-          : 'This kitchen does not currently deliver to your selected address.',
+          ? '✓ This kitchen delivers to your location area.'
+          : 'This kitchen does not currently deliver to your selected address area.',
       });
     } catch (error) {
       console.error('Error validating kitchen serviceability:', error);
@@ -465,10 +605,22 @@ export class CustomerController {
   public static async createAddress(req: AuthenticatedRequest, res: Response) {
     try {
       const userId = req.user!.userId;
-      const { label, street, city, state, postalCode, isDefault } = req.body;
+      const { label, street, city, state, postalCode, isDefault, latitude, longitude } = req.body;
 
       if (!label || !street || !city || !state || !postalCode) {
         return res.status(400).json({ success: false, error: 'All address fields are required.' });
+      }
+
+      let lat = latitude != null && !isNaN(parseFloat(latitude)) ? parseFloat(latitude) : null;
+      let lng = longitude != null && !isNaN(parseFloat(longitude)) ? parseFloat(longitude) : null;
+
+      // Automatically geocode coordinates if not provided directly
+      if (lat == null || lng == null) {
+        const coords = await geocodingService.geocodeAddress({ street, city, state, postalCode });
+        if (coords) {
+          lat = coords.lat;
+          lng = coords.lng;
+        }
       }
 
       if (isDefault) {
@@ -486,6 +638,8 @@ export class CustomerController {
           city,
           state,
           postalCode,
+          latitude: lat,
+          longitude: lng,
           isDefault: isDefault || false,
         },
       });
@@ -501,11 +655,29 @@ export class CustomerController {
     try {
       const userId = req.user!.userId;
       const { id } = req.params;
-      const { label, street, city, state, postalCode, isDefault } = req.body;
+      const { label, street, city, state, postalCode, isDefault, latitude, longitude } = req.body;
 
       const existingAddress = await prisma.address.findUnique({ where: { id } });
       if (!existingAddress || existingAddress.userId !== userId) {
         return res.status(404).json({ success: false, error: 'Address not found.' });
+      }
+
+      let lat = latitude != null && !isNaN(parseFloat(latitude)) ? parseFloat(latitude) : existingAddress.latitude;
+      let lng = longitude != null && !isNaN(parseFloat(longitude)) ? parseFloat(longitude) : existingAddress.longitude;
+
+      // Re-geocode if address text changed and new coordinates were not manually provided
+      const addressChanged = street !== existingAddress.street || city !== existingAddress.city || postalCode !== existingAddress.postalCode;
+      if (addressChanged && (latitude == null || longitude == null)) {
+        const coords = await geocodingService.geocodeAddress({
+          street: street || existingAddress.street,
+          city: city || existingAddress.city,
+          state: state || existingAddress.state,
+          postalCode: postalCode || existingAddress.postalCode,
+        });
+        if (coords) {
+          lat = coords.lat;
+          lng = coords.lng;
+        }
       }
 
       if (isDefault) {
@@ -523,6 +695,8 @@ export class CustomerController {
           city,
           state,
           postalCode,
+          latitude: lat,
+          longitude: lng,
           isDefault: isDefault !== undefined ? isDefault : existingAddress.isDefault,
         },
       });
